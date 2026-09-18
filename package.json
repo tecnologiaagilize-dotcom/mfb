@@ -26,6 +26,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/react-simple-maps": "^3.0.6",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.7.0"
   }
