@@ -1,0 +1,3 @@
+-- MFB — dados iniciais
+-- Nenhum candidato fictício é inserido.
+-- Cadastre os candidatos reais pelo painel administrativo.

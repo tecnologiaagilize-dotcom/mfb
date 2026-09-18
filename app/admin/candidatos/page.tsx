@@ -1,0 +1,6 @@
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { AdminShell } from "@/components/admin/AdminShell";
+export const dynamic = "force-dynamic";
+export default async function Page(){const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user)redirect("/admin/login");const {data}=await supabase.from("candidates").select("*").order("created_at",{ascending:false});return <AdminShell email={user.email}><div className="admin-heading"><div><span className="badge">GESTÃO</span><h1>Apoiados</h1><p>Cadastre, revise e publique os registros exibidos no ambiente público.</p></div><Link className="btn btn-primary" href="/admin/candidatos/novo">+ Novo cadastro</Link></div><section className="admin-panel"><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Nome</th><th>Estado</th><th>Cargo</th><th>Partido</th><th>Status</th><th>Ação</th></tr></thead><tbody>{(data??[]).map((c:any)=><tr key={c.id}><td><b>{c.name}</b></td><td>{c.state_uf}</td><td>{c.cargo}</td><td>{c.party??"—"}</td><td><span className={`status-pill ${c.status}`}>{c.status==="published"?"Publicado":"Rascunho"}</span></td><td><Link href={`/admin/candidatos/${c.id}`} className="admin-edit">Editar</Link></td></tr>)}</tbody></table></div></section></AdminShell>}
