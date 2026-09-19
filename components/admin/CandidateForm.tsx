@@ -20,12 +20,18 @@ export default function CandidateForm({
     scope:
       initial?.state_uf === "BR"
         ? "national"
+        : ["Prefeito(a)", "Vice-Prefeito(a)", "Vereador(a)"].includes(
+            initial?.cargo
+          )
+        ? "municipal"
         : "state",
 
     state_uf: initial?.state_uf ?? "DF",
 
+    city_name: initial?.city_name ?? "",
+
     cargo:
-      initial?.cargo ?? "Deputado Federal",
+      initial?.cargo ?? "Deputado(a) Federal",
 
     party: initial?.party ?? "",
     number: initial?.number ?? "",
@@ -107,6 +113,72 @@ export default function CandidateForm({
   }
 
   /* =========================================================
+     CARGO / ABRANGÊNCIA
+  ========================================================= */
+
+  function changeCargo(cargo: string) {
+    const nationalCargos = [
+      "Presidente",
+      "Vice-Presidente",
+    ];
+
+    const municipalCargos = [
+      "Prefeito(a)",
+      "Vice-Prefeito(a)",
+      "Vereador(a)",
+    ];
+
+    if (nationalCargos.includes(cargo)) {
+      setForm((current) => ({
+        ...current,
+        cargo,
+        scope: "national",
+        state_uf: "BR",
+        city_name: "",
+      }));
+
+      return;
+    }
+
+    if (cargo === "Deputado(a) Distrital") {
+      setForm((current) => ({
+        ...current,
+        cargo,
+        scope: "state",
+        state_uf: "DF",
+        city_name: "",
+      }));
+
+      return;
+    }
+
+    if (municipalCargos.includes(cargo)) {
+      setForm((current) => ({
+        ...current,
+        cargo,
+        scope: "municipal",
+        state_uf:
+          current.state_uf === "BR"
+            ? "DF"
+            : current.state_uf,
+      }));
+
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      cargo,
+      scope: "state",
+      state_uf:
+        current.state_uf === "BR"
+          ? "DF"
+          : current.state_uf,
+      city_name: "",
+    }));
+  }
+
+  /* =========================================================
      CONTROLES DA FOTO
   ========================================================= */
 
@@ -173,6 +245,11 @@ export default function CandidateForm({
         scope === "national"
           ? "BR"
           : form.state_uf,
+
+      city_name:
+        scope === "municipal"
+          ? form.city_name.trim()
+          : null,
 
       photo_position_x:
         Number(
@@ -333,12 +410,8 @@ export default function CandidateForm({
           <select
             className="field"
             value={form.scope}
-            onChange={(e) =>
-              set(
-                "scope",
-                e.target.value
-              )
-            }
+            disabled
+            aria-label="Abrangência definida automaticamente pelo cargo"
           >
             <option value="national">
               Nacional
@@ -347,22 +420,36 @@ export default function CandidateForm({
             <option value="state">
               Estadual / Distrital
             </option>
+
+            <option value="municipal">
+              Municipal
+            </option>
           </select>
+
+          <div
+            style={{
+              marginTop: 6,
+              color: "#667085",
+              fontSize: 12,
+              lineHeight: 1.4,
+            }}
+          >
+            Definida automaticamente conforme o cargo.
+          </div>
         </label>
 
-        {form.scope ===
-          "state" && (
+        {form.scope !== "national" && (
           <label>
-            <span
-              style={labelStyle}
-            >
+            <span style={labelStyle}>
               Estado *
             </span>
 
             <select
               className="field"
-              value={
-                form.state_uf
+              required
+              value={form.state_uf}
+              disabled={
+                form.cargo === "Deputado(a) Distrital"
               }
               onChange={(e) =>
                 set(
@@ -374,12 +461,8 @@ export default function CandidateForm({
               {STATES.map(
                 (state) => (
                   <option
-                    key={
-                      state.uf
-                    }
-                    value={
-                      state.uf
-                    }
+                    key={state.uf}
+                    value={state.uf}
                   >
                     {state.uf} —{" "}
                     {state.name}
@@ -390,6 +473,27 @@ export default function CandidateForm({
           </label>
         )}
 
+        {form.scope === "municipal" && (
+          <label>
+            <span style={labelStyle}>
+              Município *
+            </span>
+
+            <input
+              className="field"
+              required
+              placeholder="Ex.: Goiânia"
+              value={form.city_name}
+              onChange={(e) =>
+                set(
+                  "city_name",
+                  e.target.value
+                )
+              }
+            />
+          </label>
+        )}
+
         <label>
           <span style={labelStyle}>
             Cargo *
@@ -397,10 +501,10 @@ export default function CandidateForm({
 
           <select
             className="field"
+            required
             value={form.cargo}
             onChange={(e) =>
-              set(
-                "cargo",
+              changeCargo(
                 e.target.value
               )
             }
@@ -410,23 +514,43 @@ export default function CandidateForm({
             </option>
 
             <option>
-              Governador
+              Vice-Presidente
             </option>
 
             <option>
-              Senador
+              Governador(a)
             </option>
 
             <option>
-              Deputado Federal
+              Vice-Governador(a)
             </option>
 
             <option>
-              Deputado Estadual
+              Senador(a)
             </option>
 
             <option>
-              Deputado Distrital
+              Deputado(a) Federal
+            </option>
+
+            <option>
+              Deputado(a) Estadual
+            </option>
+
+            <option>
+              Deputado(a) Distrital
+            </option>
+
+            <option>
+              Prefeito(a)
+            </option>
+
+            <option>
+              Vice-Prefeito(a)
+            </option>
+
+            <option>
+              Vereador(a)
             </option>
           </select>
         </label>
