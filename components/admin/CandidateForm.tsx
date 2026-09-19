@@ -5,7 +5,11 @@ import { createClient } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 import { STATES } from "@/lib/states";
 
-export default function CandidateForm({ initial }: { initial?: any }) {
+export default function CandidateForm({
+  initial,
+}: {
+  initial?: any;
+}) {
   const router = useRouter();
 
   const [form, setForm] = useState({
@@ -21,6 +25,7 @@ export default function CandidateForm({ initial }: { initial?: any }) {
     number: initial?.number ?? "",
 
     photo_url: initial?.photo_url ?? "",
+    external_page_url: initial?.external_page_url ?? "",
 
     mini_cv: initial?.mini_cv ?? "",
     biography: initial?.biography ?? "",
@@ -37,6 +42,7 @@ export default function CandidateForm({ initial }: { initial?: any }) {
 
     source_url: initial?.source_url ?? "",
     source_notes: initial?.source_notes ?? "",
+
     verified_at: initial?.verified_at
       ? initial.verified_at.substring(0, 10)
       : "",
@@ -47,8 +53,12 @@ export default function CandidateForm({ initial }: { initial?: any }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const set = (key: string, value: string) =>
-    setForm((f) => ({ ...f, [key]: value }));
+  function set(key: string, value: string) {
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -67,16 +77,21 @@ export default function CandidateForm({ initial }: { initial?: any }) {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
 
-    const {
-      scope,
-      ...formData
-    } = form;
+    const { scope, ...formData } = form;
 
     const payload = {
       ...formData,
       slug,
-      state_uf: scope === "national" ? "BR" : form.state_uf,
-      verified_at: form.verified_at || null,
+
+      // Para registros nacionais utilizamos BR.
+      state_uf:
+        scope === "national"
+          ? "BR"
+          : form.state_uf,
+
+      verified_at:
+        form.verified_at || null,
+
       updated_at: new Date().toISOString(),
     };
 
@@ -85,7 +100,9 @@ export default function CandidateForm({ initial }: { initial?: any }) {
           .from("candidates")
           .update(payload)
           .eq("id", initial.id)
-      : await supabase.from("candidates").insert(payload);
+      : await supabase
+          .from("candidates")
+          .insert(payload);
 
     if (result.error) {
       setError(result.error.message);
@@ -110,69 +127,113 @@ export default function CandidateForm({ initial }: { initial?: any }) {
   };
 
   return (
-    <form onSubmit={save} className="card" style={{ padding: 26 }}>
+    <form
+      onSubmit={save}
+      className="card"
+      style={{
+        padding: 26,
+      }}
+    >
+      {/* =====================================================
+          IDENTIFICAÇÃO
+      ===================================================== */}
+
       <h2>Identificação</h2>
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
+          gridTemplateColumns:
+            "repeat(auto-fit,minmax(260px,1fr))",
           gap: 18,
           marginTop: 20,
         }}
       >
         <label>
-          <span style={labelStyle}>Nome completo *</span>
+          <span style={labelStyle}>
+            Nome completo *
+          </span>
+
           <input
             className="field"
             required
             value={form.name}
-            onChange={(e) => set("name", e.target.value)}
+            onChange={(e) =>
+              set("name", e.target.value)
+            }
           />
         </label>
 
         <label>
-          <span style={labelStyle}>Nome na urna</span>
+          <span style={labelStyle}>
+            Nome na urna
+          </span>
+
           <input
             className="field"
             value={form.ballot_name}
-            onChange={(e) => set("ballot_name", e.target.value)}
+            onChange={(e) =>
+              set("ballot_name", e.target.value)
+            }
           />
         </label>
 
         <label>
-          <span style={labelStyle}>Slug da URL</span>
+          <span style={labelStyle}>
+            Slug da URL
+          </span>
+
           <input
             className="field"
             placeholder="Gerado automaticamente se vazio"
             value={form.slug}
-            onChange={(e) => set("slug", e.target.value)}
+            onChange={(e) =>
+              set("slug", e.target.value)
+            }
           />
         </label>
 
         <label>
-          <span style={labelStyle}>Abrangência *</span>
+          <span style={labelStyle}>
+            Abrangência *
+          </span>
+
           <select
             className="field"
             value={form.scope}
-            onChange={(e) => set("scope", e.target.value)}
+            onChange={(e) =>
+              set("scope", e.target.value)
+            }
           >
-            <option value="national">Nacional</option>
-            <option value="state">Estadual / Distrital</option>
+            <option value="national">
+              Nacional
+            </option>
+
+            <option value="state">
+              Estadual / Distrital
+            </option>
           </select>
         </label>
 
         {form.scope === "state" && (
           <label>
-            <span style={labelStyle}>Estado *</span>
+            <span style={labelStyle}>
+              Estado *
+            </span>
+
             <select
               className="field"
               value={form.state_uf}
-              onChange={(e) => set("state_uf", e.target.value)}
+              onChange={(e) =>
+                set("state_uf", e.target.value)
+              }
             >
-              {STATES.map((s) => (
-                <option key={s.uf} value={s.uf}>
-                  {s.uf} — {s.name}
+              {STATES.map((state) => (
+                <option
+                  key={state.uf}
+                  value={state.uf}
+                >
+                  {state.uf} — {state.name}
                 </option>
               ))}
             </select>
@@ -180,11 +241,16 @@ export default function CandidateForm({ initial }: { initial?: any }) {
         )}
 
         <label>
-          <span style={labelStyle}>Cargo *</span>
+          <span style={labelStyle}>
+            Cargo *
+          </span>
+
           <select
             className="field"
             value={form.cargo}
-            onChange={(e) => set("cargo", e.target.value)}
+            onChange={(e) =>
+              set("cargo", e.target.value)
+            }
           >
             <option>Presidente</option>
             <option>Governador</option>
@@ -196,117 +262,356 @@ export default function CandidateForm({ initial }: { initial?: any }) {
         </label>
 
         <label>
-          <span style={labelStyle}>Partido</span>
+          <span style={labelStyle}>
+            Partido
+          </span>
+
           <input
             className="field"
             placeholder="Ex.: PL"
             value={form.party}
-            onChange={(e) => set("party", e.target.value)}
+            onChange={(e) =>
+              set("party", e.target.value)
+            }
           />
         </label>
 
         <label>
-          <span style={labelStyle}>Número</span>
+          <span style={labelStyle}>
+            Número
+          </span>
+
           <input
             className="field"
+            placeholder="Ex.: 22"
             value={form.number}
-            onChange={(e) => set("number", e.target.value)}
+            onChange={(e) =>
+              set("number", e.target.value)
+            }
           />
         </label>
 
         <label>
-          <span style={labelStyle}>Status *</span>
+          <span style={labelStyle}>
+            Status *
+          </span>
+
           <select
             className="field"
             value={form.status}
-            onChange={(e) => set("status", e.target.value)}
+            onChange={(e) =>
+              set("status", e.target.value)
+            }
           >
-            <option value="draft">Rascunho</option>
-            <option value="published">Publicado</option>
+            <option value="draft">
+              Rascunho
+            </option>
+
+            <option value="published">
+              Publicado
+            </option>
           </select>
         </label>
       </div>
 
-      <div style={sectionStyle}>
-        <h2>Foto e apresentação</h2>
+      {/* =====================================================
+          CONHEÇA MINHA PÁGINA
+      ===================================================== */}
 
-        <label style={{ display: "block", marginTop: 18 }}>
-          <span style={labelStyle}>URL da foto</span>
+      <div
+        style={{
+          marginTop: 32,
+          padding: 24,
+          border: "2px solid #157347",
+          borderRadius: 14,
+          background: "#f6fff9",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 800,
+            letterSpacing: 1,
+            color: "#157347",
+            marginBottom: 6,
+          }}
+        >
+          PÁGINA DO APOIADO
+        </div>
+
+        <h2
+          style={{
+            margin: "0 0 8px",
+          }}
+        >
+          Conheça minha página
+        </h2>
+
+        <p
+          style={{
+            color: "#667085",
+            marginTop: 0,
+            marginBottom: 18,
+            lineHeight: 1.6,
+          }}
+        >
+          Informe o endereço da página oficial ou
+          página própria do apoiado. O visitante
+          poderá acessar informações adicionais
+          diretamente nessa página.
+        </p>
+
+        <label>
+          <span style={labelStyle}>
+            URL da página
+          </span>
+
           <input
+            type="url"
             className="field"
             placeholder="https://..."
-            value={form.photo_url}
-            onChange={(e) => set("photo_url", e.target.value)}
+            value={form.external_page_url}
+            onChange={(e) =>
+              set(
+                "external_page_url",
+                e.target.value
+              )
+            }
           />
         </label>
 
-        <label style={{ display: "block", marginTop: 18 }}>
-          <span style={labelStyle}>Mini-CV</span>
+        {form.external_page_url && (
+          <div
+            style={{
+              marginTop: 16,
+            }}
+          >
+            <a
+              href={form.external_page_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary"
+            >
+              Visualizar página ↗
+            </a>
+          </div>
+        )}
+      </div>
+
+      {/* =====================================================
+          FOTO E APRESENTAÇÃO
+      ===================================================== */}
+
+      <div style={sectionStyle}>
+        <h2>Foto e apresentação</h2>
+
+        <label
+          style={{
+            display: "block",
+            marginTop: 18,
+          }}
+        >
+          <span style={labelStyle}>
+            URL da foto
+          </span>
+
+          <input
+            type="url"
+            className="field"
+            placeholder="https://..."
+            value={form.photo_url}
+            onChange={(e) =>
+              set("photo_url", e.target.value)
+            }
+          />
+        </label>
+
+        {form.photo_url && (
+          <div
+            style={{
+              marginTop: 18,
+            }}
+          >
+            <div
+              style={{
+                width: 180,
+                aspectRatio: "3 / 4",
+                borderRadius: 12,
+                overflow: "hidden",
+                border: "1px solid #e4e7ec",
+                background: "#f2f4f7",
+              }}
+            >
+              <img
+                src={form.photo_url}
+                alt="Pré-visualização"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                }}
+              />
+            </div>
+
+            <small
+              style={{
+                display: "block",
+                color: "#667085",
+                marginTop: 8,
+              }}
+            >
+              Pré-visualização em formato retrato 3:4.
+            </small>
+          </div>
+        )}
+
+        <label
+          style={{
+            display: "block",
+            marginTop: 20,
+          }}
+        >
+          <span style={labelStyle}>
+            Mini-CV
+          </span>
+
           <textarea
             className="field"
             rows={5}
             placeholder="Resumo da formação, profissão e trajetória."
             value={form.mini_cv}
-            onChange={(e) => set("mini_cv", e.target.value)}
+            onChange={(e) =>
+              set("mini_cv", e.target.value)
+            }
           />
         </label>
 
-        <label style={{ display: "block", marginTop: 18 }}>
-          <span style={labelStyle}>Biografia</span>
+        <label
+          style={{
+            display: "block",
+            marginTop: 18,
+          }}
+        >
+          <span style={labelStyle}>
+            Biografia
+          </span>
+
           <textarea
             className="field"
             rows={6}
             value={form.biography}
-            onChange={(e) => set("biography", e.target.value)}
+            onChange={(e) =>
+              set("biography", e.target.value)
+            }
           />
         </label>
       </div>
 
+      {/* =====================================================
+          PROJETO POLÍTICO
+      ===================================================== */}
+
       <div style={sectionStyle}>
         <h2>Projeto político</h2>
 
-        <label style={{ display: "block", marginTop: 18 }}>
-          <span style={labelStyle}>Projeto político</span>
+        <label
+          style={{
+            display: "block",
+            marginTop: 18,
+          }}
+        >
+          <span style={labelStyle}>
+            Projeto político
+          </span>
+
           <textarea
             className="field"
             rows={8}
             placeholder="Descrição do projeto político apresentado pelo apoiado."
             value={form.political_project}
-            onChange={(e) => set("political_project", e.target.value)}
+            onChange={(e) =>
+              set(
+                "political_project",
+                e.target.value
+              )
+            }
           />
         </label>
 
-        <label style={{ display: "block", marginTop: 18 }}>
-          <span style={labelStyle}>Principais propostas</span>
+        <label
+          style={{
+            display: "block",
+            marginTop: 18,
+          }}
+        >
+          <span style={labelStyle}>
+            Principais propostas
+          </span>
+
           <textarea
             className="field"
             rows={8}
+            placeholder="Registre as principais propostas apresentadas."
             value={form.proposals}
-            onChange={(e) => set("proposals", e.target.value)}
+            onChange={(e) =>
+              set("proposals", e.target.value)
+            }
           />
         </label>
 
-        <label style={{ display: "block", marginTop: 18 }}>
-          <span style={labelStyle}>Experiência pública</span>
+        <label
+          style={{
+            display: "block",
+            marginTop: 18,
+          }}
+        >
+          <span style={labelStyle}>
+            Experiência pública
+          </span>
+
           <textarea
             className="field"
             rows={6}
+            placeholder="Mandatos, cargos e outras experiências públicas."
             value={form.public_experience}
-            onChange={(e) => set("public_experience", e.target.value)}
+            onChange={(e) =>
+              set(
+                "public_experience",
+                e.target.value
+              )
+            }
           />
         </label>
 
-        <label style={{ display: "block", marginTop: 18 }}>
-          <span style={labelStyle}>Áreas prioritárias</span>
+        <label
+          style={{
+            display: "block",
+            marginTop: 18,
+          }}
+        >
+          <span style={labelStyle}>
+            Áreas prioritárias
+          </span>
+
           <textarea
             className="field"
             rows={4}
-            placeholder="Ex.: saúde, educação, segurança pública..."
+            placeholder="Ex.: saúde, educação, segurança pública, economia..."
             value={form.priority_areas}
-            onChange={(e) => set("priority_areas", e.target.value)}
+            onChange={(e) =>
+              set(
+                "priority_areas",
+                e.target.value
+              )
+            }
           />
         </label>
       </div>
+
+      {/* =====================================================
+          REDES E MÍDIA
+      ===================================================== */}
 
       <div style={sectionStyle}>
         <h2>Redes e mídia</h2>
@@ -314,89 +619,248 @@ export default function CandidateForm({ initial }: { initial?: any }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
+            gridTemplateColumns:
+              "repeat(auto-fit,minmax(260px,1fr))",
             gap: 18,
             marginTop: 18,
           }}
         >
-          {[
-            ["instagram_url", "Instagram"],
-            ["facebook_url", "Facebook"],
-            ["youtube_url", "YouTube"],
-            ["website_url", "Site oficial"],
-            ["video_url", "Vídeo de apresentação"],
-          ].map(([key, label]) => (
-            <label key={key}>
-              <span style={labelStyle}>{label}</span>
-              <input
-                className="field"
-                placeholder="https://..."
-                value={(form as any)[key]}
-                onChange={(e) => set(key, e.target.value)}
-              />
-            </label>
-          ))}
+          <label>
+            <span style={labelStyle}>
+              Instagram
+            </span>
+
+            <input
+              type="url"
+              className="field"
+              placeholder="https://..."
+              value={form.instagram_url}
+              onChange={(e) =>
+                set(
+                  "instagram_url",
+                  e.target.value
+                )
+              }
+            />
+          </label>
+
+          <label>
+            <span style={labelStyle}>
+              Facebook
+            </span>
+
+            <input
+              type="url"
+              className="field"
+              placeholder="https://..."
+              value={form.facebook_url}
+              onChange={(e) =>
+                set(
+                  "facebook_url",
+                  e.target.value
+                )
+              }
+            />
+          </label>
+
+          <label>
+            <span style={labelStyle}>
+              YouTube
+            </span>
+
+            <input
+              type="url"
+              className="field"
+              placeholder="https://..."
+              value={form.youtube_url}
+              onChange={(e) =>
+                set(
+                  "youtube_url",
+                  e.target.value
+                )
+              }
+            />
+          </label>
+
+          <label>
+            <span style={labelStyle}>
+              Site oficial
+            </span>
+
+            <input
+              type="url"
+              className="field"
+              placeholder="https://..."
+              value={form.website_url}
+              onChange={(e) =>
+                set(
+                  "website_url",
+                  e.target.value
+                )
+              }
+            />
+          </label>
+
+          <label>
+            <span style={labelStyle}>
+              Vídeo de apresentação
+            </span>
+
+            <input
+              type="url"
+              className="field"
+              placeholder="https://..."
+              value={form.video_url}
+              onChange={(e) =>
+                set(
+                  "video_url",
+                  e.target.value
+                )
+              }
+            />
+          </label>
         </div>
       </div>
+
+      {/* =====================================================
+          FONTES
+      ===================================================== */}
 
       <div style={sectionStyle}>
         <h2>Fontes e conferência</h2>
 
-        <label style={{ display: "block", marginTop: 18 }}>
-          <span style={labelStyle}>Fonte principal</span>
+        <p
+          style={{
+            color: "#667085",
+            lineHeight: 1.6,
+          }}
+        >
+          Registre a origem das informações para
+          facilitar futuras atualizações e
+          conferências.
+        </p>
+
+        <label
+          style={{
+            display: "block",
+            marginTop: 18,
+          }}
+        >
+          <span style={labelStyle}>
+            Fonte principal
+          </span>
+
           <input
+            type="url"
             className="field"
-            placeholder="Link da fonte oficial"
+            placeholder="https://..."
             value={form.source_url}
-            onChange={(e) => set("source_url", e.target.value)}
+            onChange={(e) =>
+              set("source_url", e.target.value)
+            }
           />
         </label>
 
-        <label style={{ display: "block", marginTop: 18 }}>
-          <span style={labelStyle}>Observações sobre as fontes</span>
+        <label
+          style={{
+            display: "block",
+            marginTop: 18,
+          }}
+        >
+          <span style={labelStyle}>
+            Observações sobre as fontes
+          </span>
+
           <textarea
             className="field"
             rows={4}
             value={form.source_notes}
-            onChange={(e) => set("source_notes", e.target.value)}
+            onChange={(e) =>
+              set(
+                "source_notes",
+                e.target.value
+              )
+            }
           />
         </label>
 
-        <label style={{ display: "block", marginTop: 18, maxWidth: 300 }}>
-          <span style={labelStyle}>Data da verificação</span>
+        <label
+          style={{
+            display: "block",
+            marginTop: 18,
+            maxWidth: 300,
+          }}
+        >
+          <span style={labelStyle}>
+            Data da verificação
+          </span>
+
           <input
             type="date"
             className="field"
             value={form.verified_at}
-            onChange={(e) => set("verified_at", e.target.value)}
+            onChange={(e) =>
+              set(
+                "verified_at",
+                e.target.value
+              )
+            }
           />
         </label>
       </div>
+
+      {/* =====================================================
+          ERRO
+      ===================================================== */}
 
       {error && (
         <div
           style={{
             color: "#b42318",
             background: "#fef3f2",
-            padding: 12,
+            padding: 14,
             borderRadius: 8,
-            marginTop: 22,
+            marginTop: 24,
           }}
         >
-          {error}
+          <strong>
+            Não foi possível salvar.
+          </strong>
+
+          <div
+            style={{
+              marginTop: 4,
+            }}
+          >
+            {error}
+          </div>
         </div>
       )}
+
+      {/* =====================================================
+          AÇÕES
+      ===================================================== */}
 
       <div
         style={{
           display: "flex",
           flexWrap: "wrap",
           gap: 10,
-          marginTop: 28,
+          marginTop: 30,
+          paddingTop: 24,
+          borderTop: "1px solid #e4e7ec",
         }}
       >
-        <button className="btn btn-primary" disabled={saving}>
-          {saving ? "Salvando..." : initial ? "Salvar alterações" : "Cadastrar apoiado"}
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={saving}
+        >
+          {saving
+            ? "Salvando..."
+            : initial
+            ? "Salvar alterações"
+            : "Cadastrar apoiado"}
         </button>
 
         <button
@@ -404,7 +868,7 @@ export default function CandidateForm({ initial }: { initial?: any }) {
           className="btn btn-secondary"
           onClick={() => router.back()}
         >
-          Cancelar
+          ← Voltar
         </button>
       </div>
     </form>
