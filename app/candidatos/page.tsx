@@ -38,7 +38,10 @@ export default async function CandidatesPage() {
             <div className="card" style={{marginTop:30,padding:18}}>
               <h2 style={{fontSize:24,margin:"6px 8px"}}>Mapa do Brasil</h2>
               <p style={{color:"#667085",margin:"0 8px 12px"}}>Clique em um Estado para consultar os candidatos.</p>
-              <BrazilMap counts={counts} />
+              <BrazilMap
+              counts={counts}
+               candidates={candidates}
+            />
             </div>
 
             <div style={{marginTop:42}}>
