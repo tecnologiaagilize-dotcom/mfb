@@ -8,31 +8,9 @@ import { CandidateCard } from "@/components/CandidateCard";
 import { BrazilMap } from "@/components/BrazilMap";
 
 import { STATES } from "@/lib/states";
+import type { Candidate } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-
-type Candidate = {
-  id: string;
-  name: string;
-  ballot_name?: string | null;
-  slug?: string | null;
-  state_uf: string;
-  cargo?: string | null;
-  party?: string | null;
-  number?: string | number | null;
-  photo_url?: string | null;
-  biography?: string | null;
-  proposals?: string | null;
-  instagram_url?: string | null;
-  facebook_url?: string | null;
-  youtube_url?: string | null;
-  website_url?: string | null;
-  status?: string | null;
-};
-
-/* =========================================================
-   PÁGINA
-========================================================= */
 
 export default async function CandidatesPage() {
   const supabase = await createClient();
@@ -48,25 +26,27 @@ export default async function CandidatesPage() {
   const candidates: Candidate[] =
     (data as Candidate[] | null) ?? [];
 
-  /* =======================================================
-     SEPARAÇÃO NACIONAL / ESTADOS
-  ======================================================= */
+  /* =========================================================
+     CANDIDATURAS NACIONAIS
+  ========================================================= */
 
-  const nationalCandidates =
-    candidates.filter(
-      (candidate) =>
-        candidate.state_uf?.toUpperCase() === "BR"
-    );
+  const nationalCandidates = candidates.filter(
+    (candidate) =>
+      candidate.state_uf?.toUpperCase() === "BR"
+  );
 
-  const stateCandidates =
-    candidates.filter(
-      (candidate) =>
-        candidate.state_uf?.toUpperCase() !== "BR"
-    );
+  /* =========================================================
+     CANDIDATURAS ESTADUAIS
+  ========================================================= */
 
-  /* =======================================================
+  const stateCandidates = candidates.filter(
+    (candidate) =>
+      candidate.state_uf?.toUpperCase() !== "BR"
+  );
+
+  /* =========================================================
      AGRUPAMENTO POR ESTADO
-  ======================================================= */
+  ========================================================= */
 
   const candidatesByState =
     stateCandidates.reduce(
@@ -92,18 +72,18 @@ export default async function CandidatesPage() {
       {}
     );
 
-  /* =======================================================
+  /* =========================================================
      CONTAGEM POR ESTADO
-  ======================================================= */
+  ========================================================= */
 
   const counts = Object.entries(
     candidatesByState
   ).reduce(
     (
       acc: Record<string, number>,
-      [uf, stateList]
+      [uf, list]
     ) => {
-      acc[uf] = stateList.length;
+      acc[uf] = list.length;
       return acc;
     },
     {}
@@ -122,9 +102,9 @@ export default async function CandidatesPage() {
         >
           <div className="container">
 
-            {/* =============================================
+            {/* =================================================
                 VOLTAR
-            ============================================= */}
+            ================================================= */}
 
             <div
               style={{
@@ -146,9 +126,9 @@ export default async function CandidatesPage() {
               </Link>
             </div>
 
-            {/* =============================================
+            {/* =================================================
                 CABEÇALHO
-            ============================================= */}
+            ================================================= */}
 
             <span className="badge">
               ELEIÇÕES 2026
@@ -179,9 +159,9 @@ export default async function CandidatesPage() {
               disponíveis em cada Estado.
             </p>
 
-            {/* =============================================
+            {/* =================================================
                 CANDIDATURAS NACIONAIS
-            ============================================= */}
+            ================================================= */}
 
             {nationalCandidates.length > 0 && (
               <div
@@ -237,9 +217,9 @@ export default async function CandidatesPage() {
               </div>
             )}
 
-            {/* =============================================
-                MAPA
-            ============================================= */}
+            {/* =================================================
+                MAPA DO BRASIL
+            ================================================= */}
 
             <div
               className="card"
@@ -278,9 +258,9 @@ export default async function CandidatesPage() {
               />
             </div>
 
-            {/* =============================================
+            {/* =================================================
                 ESTADOS
-            ============================================= */}
+            ================================================= */}
 
             <div
               style={{
@@ -324,18 +304,18 @@ export default async function CandidatesPage() {
               >
                 {STATES.map((state) => {
                   const stateList =
-                    candidatesByState[state.uf] ??
-                    [];
+                    candidatesByState[
+                      state.uf
+                    ] ?? [];
 
                   const visibleCandidates =
                     stateList.slice(0, 5);
 
-                  const remaining =
-                    Math.max(
-                      stateList.length -
-                        visibleCandidates.length,
-                      0
-                    );
+                  const remaining = Math.max(
+                    stateList.length -
+                      visibleCandidates.length,
+                    0
+                  );
 
                   return (
                     <Link
@@ -347,10 +327,12 @@ export default async function CandidatesPage() {
                         padding: 18,
                         color: "#172033",
                         textDecoration: "none",
-                        minHeight: 180,
+                        minHeight: 190,
                       }}
                     >
-                      {/* CABEÇALHO DO ESTADO */}
+                      {/* =======================================
+                          CABEÇALHO DO ESTADO
+                      ======================================= */}
 
                       <div
                         style={{
@@ -405,7 +387,9 @@ export default async function CandidatesPage() {
                         </div>
                       </div>
 
-                      {/* FOTOS DOS CANDIDATOS */}
+                      {/* =======================================
+                          FOTOS
+                      ======================================= */}
 
                       {visibleCandidates.length >
                       0 ? (
@@ -422,91 +406,94 @@ export default async function CandidatesPage() {
                             (
                               candidate,
                               index
-                            ) => (
-                              <div
-                                key={
-                                  candidate.id ||
-                                  `${candidate.name}-${index}`
-                                }
-                                title={
-                                  candidate.ballot_name ||
-                                  candidate.name
-                                }
-                                style={{
-                                  width: 46,
-                                  aspectRatio:
-                                    "3 / 4",
-                                  flexShrink: 0,
-                                  borderRadius: 7,
-                                  overflow:
-                                    "hidden",
-                                  background:
-                                    "#eef2f4",
-                                  border:
-                                    "1px solid #e4e7ec",
-                                }}
-                              >
-                                {candidate.photo_url ? (
-                                  <img
-                                    src={
-                                      candidate.photo_url
-                                    }
-                                    alt={
-                                      candidate.ballot_name ||
-                                      candidate.name
-                                    }
-                                    style={{
-                                      width:
-                                        "100%",
-                                      height:
-                                        "100%",
-                                      display:
-                                        "block",
-                                      objectFit:
-                                        "cover",
-                                      objectPosition:
-                                        "center top",
-                                    }}
-                                  />
-                                ) : (
-                                  <div
-                                    style={{
-                                      width:
-                                        "100%",
-                                      height:
-                                        "100%",
-                                      display:
-                                        "flex",
-                                      alignItems:
-                                        "center",
-                                      justifyContent:
-                                        "center",
-                                      background:
-                                        "#f2f4f7",
-                                      color:
-                                        "#98a2b3",
-                                      fontSize:
-                                        20,
-                                    }}
-                                  >
-                                    👤
-                                  </div>
-                                )}
-                              </div>
-                            )
+                            ) => {
+                              const displayName =
+                                candidate.name;
+
+                              return (
+                                <div
+                                  key={
+                                    candidate.id ||
+                                    `${candidate.name}-${index}`
+                                  }
+                                  title={
+                                    displayName
+                                  }
+                                  style={{
+                                    width: 48,
+                                    aspectRatio:
+                                      "3 / 4",
+                                    flexShrink: 0,
+                                    borderRadius: 8,
+                                    overflow:
+                                      "hidden",
+                                    background:
+                                      "#eef2f4",
+                                    border:
+                                      "1px solid #e4e7ec",
+                                  }}
+                                >
+                                  {candidate.photo_url ? (
+                                    <img
+                                      src={
+                                        candidate.photo_url
+                                      }
+                                      alt={
+                                        displayName
+                                      }
+                                      style={{
+                                        width:
+                                          "100%",
+                                        height:
+                                          "100%",
+                                        display:
+                                          "block",
+                                        objectFit:
+                                          "cover",
+                                        objectPosition:
+                                          "center top",
+                                      }}
+                                    />
+                                  ) : (
+                                    <div
+                                      style={{
+                                        width:
+                                          "100%",
+                                        height:
+                                          "100%",
+                                        display:
+                                          "flex",
+                                        alignItems:
+                                          "center",
+                                        justifyContent:
+                                          "center",
+                                        color:
+                                          "#98a2b3",
+                                        background:
+                                          "#f2f4f7",
+                                        fontSize:
+                                          20,
+                                      }}
+                                    >
+                                      👤
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
                           )}
 
                           {remaining > 0 && (
                             <div
                               style={{
-                                width: 46,
-                                height: 46,
+                                width: 48,
+                                height: 48,
+                                flexShrink: 0,
                                 display: "flex",
                                 alignItems:
                                   "center",
                                 justifyContent:
                                   "center",
-                                flexShrink: 0,
                                 borderRadius:
                                   "50%",
                                 background:
@@ -524,8 +511,9 @@ export default async function CandidatesPage() {
                         <div
                           style={{
                             marginTop: 20,
-                            padding:
-                              "12px 0",
+                            minHeight: 64,
+                            display: "flex",
+                            alignItems: "center",
                             color: "#98a2b3",
                             fontSize: 13,
                           }}
@@ -535,7 +523,9 @@ export default async function CandidatesPage() {
                         </div>
                       )}
 
-                      {/* RODAPÉ DO CARD */}
+                      {/* =======================================
+                          RODAPÉ
+                      ======================================= */}
 
                       <div
                         style={{
@@ -558,9 +548,9 @@ export default async function CandidatesPage() {
               </div>
             </div>
 
-            {/* =============================================
+            {/* =================================================
                 TODOS OS CANDIDATOS
-            ============================================= */}
+            ================================================= */}
 
             <div
               style={{
