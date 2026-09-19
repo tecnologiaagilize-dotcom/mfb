@@ -17,31 +17,67 @@ export default function CandidateForm({
     ballot_name: initial?.ballot_name ?? "",
     slug: initial?.slug ?? "",
 
-    scope: initial?.state_uf === "BR" ? "national" : "state",
+    scope:
+      initial?.state_uf === "BR"
+        ? "national"
+        : "state",
+
     state_uf: initial?.state_uf ?? "DF",
 
-    cargo: initial?.cargo ?? "Deputado Federal",
+    cargo:
+      initial?.cargo ?? "Deputado Federal",
+
     party: initial?.party ?? "",
     number: initial?.number ?? "",
 
     photo_url: initial?.photo_url ?? "",
-    external_page_url: initial?.external_page_url ?? "",
+
+    photo_position_x:
+      Number(initial?.photo_position_x ?? 50),
+
+    photo_position_y:
+      Number(initial?.photo_position_y ?? 20),
+
+    photo_zoom:
+      Number(initial?.photo_zoom ?? 1),
+
+    external_page_url:
+      initial?.external_page_url ?? "",
 
     mini_cv: initial?.mini_cv ?? "",
     biography: initial?.biography ?? "",
-    political_project: initial?.political_project ?? "",
+
+    political_project:
+      initial?.political_project ?? "",
+
     proposals: initial?.proposals ?? "",
-    public_experience: initial?.public_experience ?? "",
-    priority_areas: initial?.priority_areas ?? "",
 
-    instagram_url: initial?.instagram_url ?? "",
-    facebook_url: initial?.facebook_url ?? "",
-    youtube_url: initial?.youtube_url ?? "",
-    website_url: initial?.website_url ?? "",
-    video_url: initial?.video_url ?? "",
+    public_experience:
+      initial?.public_experience ?? "",
 
-    source_url: initial?.source_url ?? "",
-    source_notes: initial?.source_notes ?? "",
+    priority_areas:
+      initial?.priority_areas ?? "",
+
+    instagram_url:
+      initial?.instagram_url ?? "",
+
+    facebook_url:
+      initial?.facebook_url ?? "",
+
+    youtube_url:
+      initial?.youtube_url ?? "",
+
+    website_url:
+      initial?.website_url ?? "",
+
+    video_url:
+      initial?.video_url ?? "",
+
+    source_url:
+      initial?.source_url ?? "",
+
+    source_notes:
+      initial?.source_notes ?? "",
 
     verified_at: initial?.verified_at
       ? initial.verified_at.substring(0, 10)
@@ -50,17 +86,54 @@ export default function CandidateForm({
     status: initial?.status ?? "draft",
   });
 
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [saving, setSaving] =
+    useState(false);
 
-  function set(key: string, value: string) {
+  const [error, setError] =
+    useState("");
+
+  /* =========================================================
+     ALTERAÇÃO GENÉRICA
+  ========================================================= */
+
+  function set(
+    key: string,
+    value: string | number
+  ) {
     setForm((current) => ({
       ...current,
       [key]: value,
     }));
   }
 
-  async function save(e: React.FormEvent) {
+  /* =========================================================
+     CONTROLES DA FOTO
+  ========================================================= */
+
+  function centralizePhoto() {
+    setForm((current) => ({
+      ...current,
+      photo_position_x: 50,
+      photo_position_y: 50,
+    }));
+  }
+
+  function restorePhoto() {
+    setForm((current) => ({
+      ...current,
+      photo_position_x: 50,
+      photo_position_y: 20,
+      photo_zoom: 1,
+    }));
+  }
+
+  /* =========================================================
+     SALVAR
+  ========================================================= */
+
+  async function save(
+    e: React.FormEvent
+  ) {
     e.preventDefault();
 
     setSaving(true);
@@ -73,26 +146,52 @@ export default function CandidateForm({
       form.name
         .toLowerCase()
         .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
+        .replace(
+          /[\u0300-\u036f]/g,
+          ""
+        )
+        .replace(
+          /[^a-z0-9]+/g,
+          "-"
+        )
+        .replace(
+          /^-|-$/g,
+          ""
+        );
 
-    const { scope, ...formData } = form;
+    const {
+      scope,
+      ...formData
+    } = form;
 
     const payload = {
       ...formData,
+
       slug,
 
-      // Para registros nacionais utilizamos BR.
       state_uf:
         scope === "national"
           ? "BR"
           : form.state_uf,
 
+      photo_position_x:
+        Number(
+          form.photo_position_x
+        ),
+
+      photo_position_y:
+        Number(
+          form.photo_position_y
+        ),
+
+      photo_zoom:
+        Number(form.photo_zoom),
+
       verified_at:
         form.verified_at || null,
 
-      updated_at: new Date().toISOString(),
+      updated_at:
+        new Date().toISOString(),
     };
 
     const result = initial
@@ -105,14 +204,25 @@ export default function CandidateForm({
           .insert(payload);
 
     if (result.error) {
-      setError(result.error.message);
+      setError(
+        result.error.message
+      );
+
       setSaving(false);
+
       return;
     }
 
-    router.push("/admin/candidatos");
+    router.push(
+      "/admin/candidatos"
+    );
+
     router.refresh();
   }
+
+  /* =========================================================
+     ESTILOS
+  ========================================================= */
 
   const labelStyle = {
     display: "block",
@@ -123,7 +233,16 @@ export default function CandidateForm({
   const sectionStyle = {
     marginTop: 32,
     paddingTop: 24,
-    borderTop: "1px solid #e4e7ec",
+    borderTop:
+      "1px solid #e4e7ec",
+  };
+
+  const controlBoxStyle = {
+    padding: 18,
+    border:
+      "1px solid #e4e7ec",
+    borderRadius: 12,
+    background: "#fff",
   };
 
   return (
@@ -138,7 +257,9 @@ export default function CandidateForm({
           IDENTIFICAÇÃO
       ===================================================== */}
 
-      <h2>Identificação</h2>
+      <h2>
+        Identificação
+      </h2>
 
       <div
         style={{
@@ -159,7 +280,10 @@ export default function CandidateForm({
             required
             value={form.name}
             onChange={(e) =>
-              set("name", e.target.value)
+              set(
+                "name",
+                e.target.value
+              )
             }
           />
         </label>
@@ -171,9 +295,14 @@ export default function CandidateForm({
 
           <input
             className="field"
-            value={form.ballot_name}
+            value={
+              form.ballot_name
+            }
             onChange={(e) =>
-              set("ballot_name", e.target.value)
+              set(
+                "ballot_name",
+                e.target.value
+              )
             }
           />
         </label>
@@ -188,7 +317,10 @@ export default function CandidateForm({
             placeholder="Gerado automaticamente se vazio"
             value={form.slug}
             onChange={(e) =>
-              set("slug", e.target.value)
+              set(
+                "slug",
+                e.target.value
+              )
             }
           />
         </label>
@@ -202,7 +334,10 @@ export default function CandidateForm({
             className="field"
             value={form.scope}
             onChange={(e) =>
-              set("scope", e.target.value)
+              set(
+                "scope",
+                e.target.value
+              )
             }
           >
             <option value="national">
@@ -215,27 +350,42 @@ export default function CandidateForm({
           </select>
         </label>
 
-        {form.scope === "state" && (
+        {form.scope ===
+          "state" && (
           <label>
-            <span style={labelStyle}>
+            <span
+              style={labelStyle}
+            >
               Estado *
             </span>
 
             <select
               className="field"
-              value={form.state_uf}
+              value={
+                form.state_uf
+              }
               onChange={(e) =>
-                set("state_uf", e.target.value)
+                set(
+                  "state_uf",
+                  e.target.value
+                )
               }
             >
-              {STATES.map((state) => (
-                <option
-                  key={state.uf}
-                  value={state.uf}
-                >
-                  {state.uf} — {state.name}
-                </option>
-              ))}
+              {STATES.map(
+                (state) => (
+                  <option
+                    key={
+                      state.uf
+                    }
+                    value={
+                      state.uf
+                    }
+                  >
+                    {state.uf} —{" "}
+                    {state.name}
+                  </option>
+                )
+              )}
             </select>
           </label>
         )}
@@ -249,15 +399,35 @@ export default function CandidateForm({
             className="field"
             value={form.cargo}
             onChange={(e) =>
-              set("cargo", e.target.value)
+              set(
+                "cargo",
+                e.target.value
+              )
             }
           >
-            <option>Presidente</option>
-            <option>Governador</option>
-            <option>Senador</option>
-            <option>Deputado Federal</option>
-            <option>Deputado Estadual</option>
-            <option>Deputado Distrital</option>
+            <option>
+              Presidente
+            </option>
+
+            <option>
+              Governador
+            </option>
+
+            <option>
+              Senador
+            </option>
+
+            <option>
+              Deputado Federal
+            </option>
+
+            <option>
+              Deputado Estadual
+            </option>
+
+            <option>
+              Deputado Distrital
+            </option>
           </select>
         </label>
 
@@ -271,7 +441,10 @@ export default function CandidateForm({
             placeholder="Ex.: PL"
             value={form.party}
             onChange={(e) =>
-              set("party", e.target.value)
+              set(
+                "party",
+                e.target.value
+              )
             }
           />
         </label>
@@ -286,7 +459,10 @@ export default function CandidateForm({
             placeholder="Ex.: 22"
             value={form.number}
             onChange={(e) =>
-              set("number", e.target.value)
+              set(
+                "number",
+                e.target.value
+              )
             }
           />
         </label>
@@ -300,7 +476,10 @@ export default function CandidateForm({
             className="field"
             value={form.status}
             onChange={(e) =>
-              set("status", e.target.value)
+              set(
+                "status",
+                e.target.value
+              )
             }
           >
             <option value="draft">
@@ -315,95 +494,28 @@ export default function CandidateForm({
       </div>
 
       {/* =====================================================
-          CONHEÇA MINHA PÁGINA
+          FOTO
       ===================================================== */}
 
-      <div
-        style={{
-          marginTop: 32,
-          padding: 24,
-          border: "2px solid #157347",
-          borderRadius: 14,
-          background: "#f6fff9",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 800,
-            letterSpacing: 1,
-            color: "#157347",
-            marginBottom: 6,
-          }}
-        >
-          PÁGINA DO APOIADO
-        </div>
-
-        <h2
-          style={{
-            margin: "0 0 8px",
-          }}
-        >
-          Conheça minha página
+      <div style={sectionStyle}>
+        <h2>
+          Foto do candidato
         </h2>
 
         <p
           style={{
             color: "#667085",
-            marginTop: 0,
-            marginBottom: 18,
             lineHeight: 1.6,
+            maxWidth: 760,
           }}
         >
-          Informe o endereço da página oficial ou
-          página própria do apoiado. O visitante
-          poderá acessar informações adicionais
-          diretamente nessa página.
+          Informe a URL da foto e
+          utilize os controles para
+          escolher o melhor
+          enquadramento. O ajuste
+          será utilizado nos cards
+          públicos do candidato.
         </p>
-
-        <label>
-          <span style={labelStyle}>
-            URL da página
-          </span>
-
-          <input
-            type="url"
-            className="field"
-            placeholder="https://..."
-            value={form.external_page_url}
-            onChange={(e) =>
-              set(
-                "external_page_url",
-                e.target.value
-              )
-            }
-          />
-        </label>
-
-        {form.external_page_url && (
-          <div
-            style={{
-              marginTop: 16,
-            }}
-          >
-            <a
-              href={form.external_page_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-secondary"
-            >
-              Visualizar página ↗
-            </a>
-          </div>
-        )}
-      </div>
-
-      {/* =====================================================
-          FOTO E APRESENTAÇÃO
-      ===================================================== */}
-
-      <div style={sectionStyle}>
-        <h2>Foto e apresentação</h2>
 
         <label
           style={{
@@ -421,7 +533,10 @@ export default function CandidateForm({
             placeholder="https://..."
             value={form.photo_url}
             onChange={(e) =>
-              set("photo_url", e.target.value)
+              set(
+                "photo_url",
+                e.target.value
+              )
             }
           />
         </label>
@@ -429,47 +544,479 @@ export default function CandidateForm({
         {form.photo_url && (
           <div
             style={{
-              marginTop: 18,
+              display: "grid",
+              gridTemplateColumns:
+                "minmax(220px,320px) minmax(280px,1fr)",
+              gap: 28,
+              marginTop: 26,
+              alignItems: "start",
             }}
           >
-            <div
-              style={{
-                width: 180,
-                aspectRatio: "3 / 4",
-                borderRadius: 12,
-                overflow: "hidden",
-                border: "1px solid #e4e7ec",
-                background: "#f2f4f7",
-              }}
-            >
-              <img
-                src={form.photo_url}
-                alt="Pré-visualização"
+            {/* PREVIEW */}
+
+            <div>
+              <div
                 style={{
                   width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
+                  maxWidth: 300,
+                  aspectRatio:
+                    "3 / 4",
+                  borderRadius: 14,
+                  overflow:
+                    "hidden",
+                  border:
+                    "1px solid #d0d5dd",
+                  background:
+                    "#f2f4f7",
+                  position:
+                    "relative",
                 }}
-              />
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={
+                    form.photo_url
+                  }
+                  alt="Pré-visualização do candidato"
+                  style={{
+                    position:
+                      "absolute",
+                    width: "100%",
+                    height: "100%",
+                    inset: 0,
+
+                    objectFit:
+                      "cover",
+
+                    objectPosition: `${form.photo_position_x}% ${form.photo_position_y}%`,
+
+                    transform: `scale(${form.photo_zoom})`,
+
+                    transformOrigin: `${form.photo_position_x}% ${form.photo_position_y}%`,
+
+                    display:
+                      "block",
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  marginTop: 10,
+                  color: "#667085",
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                }}
+              >
+                Pré-visualização
+                pública em formato
+                retrato 3:4.
+              </div>
             </div>
 
-            <small
+            {/* CONTROLES */}
+
+            <div
               style={{
-                display: "block",
-                color: "#667085",
-                marginTop: 8,
+                display: "grid",
+                gap: 16,
               }}
             >
-              Pré-visualização em formato retrato 3:4.
-            </small>
+              {/* HORIZONTAL */}
+
+              <div
+                style={
+                  controlBoxStyle
+                }
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    gap: 10,
+                    marginBottom: 10,
+                  }}
+                >
+                  <strong>
+                    Posição
+                    horizontal
+                  </strong>
+
+                  <span
+                    style={{
+                      color:
+                        "#667085",
+                    }}
+                  >
+                    {
+                      form.photo_position_x
+                    }
+                    %
+                  </span>
+                </div>
+
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={
+                    form.photo_position_x
+                  }
+                  onChange={(e) =>
+                    set(
+                      "photo_position_x",
+                      Number(
+                        e.target
+                          .value
+                      )
+                    )
+                  }
+                  style={{
+                    width:
+                      "100%",
+                  }}
+                />
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    marginTop: 5,
+                    color:
+                      "#98a2b3",
+                    fontSize: 12,
+                  }}
+                >
+                  <span>
+                    Esquerda
+                  </span>
+
+                  <span>
+                    Direita
+                  </span>
+                </div>
+              </div>
+
+              {/* VERTICAL */}
+
+              <div
+                style={
+                  controlBoxStyle
+                }
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    gap: 10,
+                    marginBottom: 10,
+                  }}
+                >
+                  <strong>
+                    Posição
+                    vertical
+                  </strong>
+
+                  <span
+                    style={{
+                      color:
+                        "#667085",
+                    }}
+                  >
+                    {
+                      form.photo_position_y
+                    }
+                    %
+                  </span>
+                </div>
+
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={
+                    form.photo_position_y
+                  }
+                  onChange={(e) =>
+                    set(
+                      "photo_position_y",
+                      Number(
+                        e.target
+                          .value
+                      )
+                    )
+                  }
+                  style={{
+                    width:
+                      "100%",
+                  }}
+                />
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    marginTop: 5,
+                    color:
+                      "#98a2b3",
+                    fontSize: 12,
+                  }}
+                >
+                  <span>
+                    Topo
+                  </span>
+
+                  <span>
+                    Inferior
+                  </span>
+                </div>
+              </div>
+
+              {/* ZOOM */}
+
+              <div
+                style={
+                  controlBoxStyle
+                }
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    gap: 10,
+                    marginBottom: 10,
+                  }}
+                >
+                  <strong>
+                    Zoom
+                  </strong>
+
+                  <span
+                    style={{
+                      color:
+                        "#667085",
+                    }}
+                  >
+                    {Math.round(
+                      form.photo_zoom *
+                        100
+                    )}
+                    %
+                  </span>
+                </div>
+
+                <input
+                  type="range"
+                  min="1"
+                  max="2"
+                  step="0.01"
+                  value={
+                    form.photo_zoom
+                  }
+                  onChange={(e) =>
+                    set(
+                      "photo_zoom",
+                      Number(
+                        e.target
+                          .value
+                      )
+                    )
+                  }
+                  style={{
+                    width:
+                      "100%",
+                  }}
+                />
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    marginTop: 5,
+                    color:
+                      "#98a2b3",
+                    fontSize: 12,
+                  }}
+                >
+                  <span>
+                    100%
+                  </span>
+
+                  <span>
+                    200%
+                  </span>
+                </div>
+              </div>
+
+              {/* BOTÕES */}
+
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 10,
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={
+                    centralizePhoto
+                  }
+                >
+                  Centralizar foto
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={
+                    restorePhoto
+                  }
+                >
+                  Restaurar padrão
+                </button>
+              </div>
+
+              <div
+                style={{
+                  padding: 14,
+                  borderRadius: 10,
+                  background:
+                    "#f9fafb",
+                  color:
+                    "#667085",
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                }}
+              >
+                Ajuste a posição e
+                o zoom até que o
+                rosto e a parte
+                superior do corpo
+                fiquem bem
+                enquadrados dentro
+                do formato 3:4.
+              </div>
+            </div>
           </div>
         )}
+      </div>
+
+      {/* =====================================================
+          CONHEÇA MINHA PÁGINA
+      ===================================================== */}
+
+      <div
+        style={{
+          marginTop: 32,
+          padding: 24,
+          border:
+            "2px solid #157347",
+          borderRadius: 14,
+          background:
+            "#f6fff9",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 800,
+            letterSpacing: 1,
+            color: "#157347",
+            marginBottom: 6,
+          }}
+        >
+          PÁGINA DO CANDIDATO
+        </div>
+
+        <h2
+          style={{
+            margin:
+              "0 0 8px",
+          }}
+        >
+          Conheça minha página
+        </h2>
+
+        <p
+          style={{
+            color: "#667085",
+            marginTop: 0,
+            marginBottom: 18,
+            lineHeight: 1.6,
+          }}
+        >
+          Informe uma página
+          pública relacionada ao
+          candidato. Pode ser o
+          site informado no
+          cadastro, página pública
+          ou perfil em rede social.
+        </p>
+
+        <label>
+          <span style={labelStyle}>
+            URL externa
+          </span>
+
+          <input
+            type="url"
+            className="field"
+            placeholder="https://..."
+            value={
+              form.external_page_url
+            }
+            onChange={(e) =>
+              set(
+                "external_page_url",
+                e.target.value
+              )
+            }
+          />
+        </label>
+
+        {form.external_page_url && (
+          <div
+            style={{
+              marginTop: 16,
+            }}
+          >
+            <a
+              href={
+                form.external_page_url
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary"
+            >
+              Visualizar página ↗
+            </a>
+          </div>
+        )}
+      </div>
+
+      {/* =====================================================
+          APRESENTAÇÃO
+      ===================================================== */}
+
+      <div style={sectionStyle}>
+        <h2>
+          Apresentação
+        </h2>
 
         <label
           style={{
             display: "block",
-            marginTop: 20,
+            marginTop: 18,
           }}
         >
           <span style={labelStyle}>
@@ -482,7 +1029,10 @@ export default function CandidateForm({
             placeholder="Resumo da formação, profissão e trajetória."
             value={form.mini_cv}
             onChange={(e) =>
-              set("mini_cv", e.target.value)
+              set(
+                "mini_cv",
+                e.target.value
+              )
             }
           />
         </label>
@@ -502,7 +1052,10 @@ export default function CandidateForm({
             rows={6}
             value={form.biography}
             onChange={(e) =>
-              set("biography", e.target.value)
+              set(
+                "biography",
+                e.target.value
+              )
             }
           />
         </label>
@@ -513,7 +1066,9 @@ export default function CandidateForm({
       ===================================================== */}
 
       <div style={sectionStyle}>
-        <h2>Projeto político</h2>
+        <h2>
+          Projeto político
+        </h2>
 
         <label
           style={{
@@ -528,8 +1083,10 @@ export default function CandidateForm({
           <textarea
             className="field"
             rows={8}
-            placeholder="Descrição do projeto político apresentado pelo apoiado."
-            value={form.political_project}
+            placeholder="Descrição do projeto político apresentado pelo candidato."
+            value={
+              form.political_project
+            }
             onChange={(e) =>
               set(
                 "political_project",
@@ -555,7 +1112,10 @@ export default function CandidateForm({
             placeholder="Registre as principais propostas apresentadas."
             value={form.proposals}
             onChange={(e) =>
-              set("proposals", e.target.value)
+              set(
+                "proposals",
+                e.target.value
+              )
             }
           />
         </label>
@@ -574,7 +1134,9 @@ export default function CandidateForm({
             className="field"
             rows={6}
             placeholder="Mandatos, cargos e outras experiências públicas."
-            value={form.public_experience}
+            value={
+              form.public_experience
+            }
             onChange={(e) =>
               set(
                 "public_experience",
@@ -598,7 +1160,9 @@ export default function CandidateForm({
             className="field"
             rows={4}
             placeholder="Ex.: saúde, educação, segurança pública, economia..."
-            value={form.priority_areas}
+            value={
+              form.priority_areas
+            }
             onChange={(e) =>
               set(
                 "priority_areas",
@@ -614,7 +1178,9 @@ export default function CandidateForm({
       ===================================================== */}
 
       <div style={sectionStyle}>
-        <h2>Redes e mídia</h2>
+        <h2>
+          Redes e mídia
+        </h2>
 
         <div
           style={{
@@ -626,7 +1192,9 @@ export default function CandidateForm({
           }}
         >
           <label>
-            <span style={labelStyle}>
+            <span
+              style={labelStyle}
+            >
               Instagram
             </span>
 
@@ -634,7 +1202,9 @@ export default function CandidateForm({
               type="url"
               className="field"
               placeholder="https://..."
-              value={form.instagram_url}
+              value={
+                form.instagram_url
+              }
               onChange={(e) =>
                 set(
                   "instagram_url",
@@ -645,7 +1215,9 @@ export default function CandidateForm({
           </label>
 
           <label>
-            <span style={labelStyle}>
+            <span
+              style={labelStyle}
+            >
               Facebook
             </span>
 
@@ -653,7 +1225,9 @@ export default function CandidateForm({
               type="url"
               className="field"
               placeholder="https://..."
-              value={form.facebook_url}
+              value={
+                form.facebook_url
+              }
               onChange={(e) =>
                 set(
                   "facebook_url",
@@ -664,7 +1238,9 @@ export default function CandidateForm({
           </label>
 
           <label>
-            <span style={labelStyle}>
+            <span
+              style={labelStyle}
+            >
               YouTube
             </span>
 
@@ -672,7 +1248,9 @@ export default function CandidateForm({
               type="url"
               className="field"
               placeholder="https://..."
-              value={form.youtube_url}
+              value={
+                form.youtube_url
+              }
               onChange={(e) =>
                 set(
                   "youtube_url",
@@ -683,7 +1261,9 @@ export default function CandidateForm({
           </label>
 
           <label>
-            <span style={labelStyle}>
+            <span
+              style={labelStyle}
+            >
               Site oficial
             </span>
 
@@ -691,7 +1271,9 @@ export default function CandidateForm({
               type="url"
               className="field"
               placeholder="https://..."
-              value={form.website_url}
+              value={
+                form.website_url
+              }
               onChange={(e) =>
                 set(
                   "website_url",
@@ -702,7 +1284,9 @@ export default function CandidateForm({
           </label>
 
           <label>
-            <span style={labelStyle}>
+            <span
+              style={labelStyle}
+            >
               Vídeo de apresentação
             </span>
 
@@ -710,7 +1294,9 @@ export default function CandidateForm({
               type="url"
               className="field"
               placeholder="https://..."
-              value={form.video_url}
+              value={
+                form.video_url
+              }
               onChange={(e) =>
                 set(
                   "video_url",
@@ -727,7 +1313,9 @@ export default function CandidateForm({
       ===================================================== */}
 
       <div style={sectionStyle}>
-        <h2>Fontes e conferência</h2>
+        <h2>
+          Fontes e conferência
+        </h2>
 
         <p
           style={{
@@ -735,8 +1323,10 @@ export default function CandidateForm({
             lineHeight: 1.6,
           }}
         >
-          Registre a origem das informações para
-          facilitar futuras atualizações e
+          Registre a origem das
+          informações para
+          facilitar futuras
+          atualizações e
           conferências.
         </p>
 
@@ -756,7 +1346,10 @@ export default function CandidateForm({
             placeholder="https://..."
             value={form.source_url}
             onChange={(e) =>
-              set("source_url", e.target.value)
+              set(
+                "source_url",
+                e.target.value
+              )
             }
           />
         </label>
@@ -768,13 +1361,16 @@ export default function CandidateForm({
           }}
         >
           <span style={labelStyle}>
-            Observações sobre as fontes
+            Observações sobre as
+            fontes
           </span>
 
           <textarea
             className="field"
             rows={4}
-            value={form.source_notes}
+            value={
+              form.source_notes
+            }
             onChange={(e) =>
               set(
                 "source_notes",
@@ -798,7 +1394,9 @@ export default function CandidateForm({
           <input
             type="date"
             className="field"
-            value={form.verified_at}
+            value={
+              form.verified_at
+            }
             onChange={(e) =>
               set(
                 "verified_at",
@@ -817,14 +1415,16 @@ export default function CandidateForm({
         <div
           style={{
             color: "#b42318",
-            background: "#fef3f2",
+            background:
+              "#fef3f2",
             padding: 14,
             borderRadius: 8,
             marginTop: 24,
           }}
         >
           <strong>
-            Não foi possível salvar.
+            Não foi possível
+            salvar.
           </strong>
 
           <div
@@ -848,7 +1448,8 @@ export default function CandidateForm({
           gap: 10,
           marginTop: 30,
           paddingTop: 24,
-          borderTop: "1px solid #e4e7ec",
+          borderTop:
+            "1px solid #e4e7ec",
         }}
       >
         <button
@@ -860,13 +1461,15 @@ export default function CandidateForm({
             ? "Salvando..."
             : initial
             ? "Salvar alterações"
-            : "Cadastrar apoiado"}
+            : "Cadastrar candidato"}
         </button>
 
         <button
           type="button"
           className="btn btn-secondary"
-          onClick={() => router.back()}
+          onClick={() =>
+            router.back()
+          }
         >
           ← Voltar
         </button>
