@@ -27,7 +27,7 @@ export default async function CandidatesPage() {
     (data as Candidate[] | null) ?? [];
 
   /* =========================================================
-     CANDIDATURAS NACIONAIS
+     CANDIDATOS DE ABRANGÊNCIA NACIONAL
   ========================================================= */
 
   const nationalCandidates = candidates.filter(
@@ -36,7 +36,7 @@ export default async function CandidatesPage() {
   );
 
   /* =========================================================
-     CANDIDATURAS ESTADUAIS
+     CANDIDATOS ESTADUAIS / DISTRITAIS
   ========================================================= */
 
   const stateCandidates = candidates.filter(
@@ -45,7 +45,7 @@ export default async function CandidatesPage() {
   );
 
   /* =========================================================
-     AGRUPAMENTO POR ESTADO
+     AGRUPAMENTO DOS CANDIDATOS POR ESTADO
   ========================================================= */
 
   const candidatesByState =
@@ -84,10 +84,22 @@ export default async function CandidatesPage() {
       [uf, list]
     ) => {
       acc[uf] = list.length;
+
       return acc;
     },
     {}
   );
+
+  /* =========================================================
+     SOMENTE ESTADOS QUE POSSUEM CANDIDATOS PUBLICADOS
+  ========================================================= */
+
+  const statesWithCandidates =
+    STATES.filter(
+      (state) =>
+        (candidatesByState[state.uf]?.length ??
+          0) > 0
+    );
 
   return (
     <>
@@ -160,18 +172,18 @@ export default async function CandidatesPage() {
             </p>
 
             {/* =================================================
-                CANDIDATURAS NACIONAIS
+                CANDIDATOS NACIONAIS
             ================================================= */}
 
             {nationalCandidates.length > 0 && (
-              <div
+              <section
                 style={{
                   marginTop: 42,
                 }}
               >
                 <div
                   style={{
-                    marginBottom: 18,
+                    marginBottom: 20,
                   }}
                 >
                   <span
@@ -193,7 +205,7 @@ export default async function CandidatesPage() {
                       margin: 0,
                     }}
                   >
-                    Candidaturas nacionais
+                    Candidatos nacionais
                   </h2>
                 </div>
 
@@ -201,30 +213,31 @@ export default async function CandidatesPage() {
                   style={{
                     display: "grid",
                     gridTemplateColumns:
-                      "repeat(auto-fit,minmax(250px,320px))",
-                    gap: 20,
+                      "repeat(auto-fit, minmax(220px, 290px))",
+                    gap: 22,
+                    alignItems: "stretch",
                   }}
                 >
                   {nationalCandidates.map(
                     (candidate) => (
                       <CandidateCard
-                        candidate={candidate}
                         key={candidate.id}
+                        candidate={candidate}
                       />
                     )
                   )}
                 </div>
-              </div>
+              </section>
             )}
 
             {/* =================================================
                 MAPA DO BRASIL
             ================================================= */}
 
-            <div
+            <section
               className="card"
               style={{
-                marginTop: 42,
+                marginTop: 48,
                 padding: 20,
               }}
             >
@@ -256,15 +269,15 @@ export default async function CandidatesPage() {
                 hrefPrefix="/estado"
                 showCandidateMosaic={true}
               />
-            </div>
+            </section>
 
             {/* =================================================
                 ESTADOS
             ================================================= */}
 
-            <div
+            <section
               style={{
-                marginTop: 50,
+                marginTop: 52,
               }}
             >
               <div
@@ -304,9 +317,8 @@ export default async function CandidatesPage() {
               >
                 {STATES.map((state) => {
                   const stateList =
-                    candidatesByState[
-                      state.uf
-                    ] ?? [];
+                    candidatesByState[state.uf] ??
+                    [];
 
                   const visibleCandidates =
                     stateList.slice(0, 5);
@@ -330,9 +342,7 @@ export default async function CandidatesPage() {
                         minHeight: 190,
                       }}
                     >
-                      {/* =======================================
-                          CABEÇALHO DO ESTADO
-                      ======================================= */}
+                      {/* CABEÇALHO */}
 
                       <div
                         style={{
@@ -387,9 +397,7 @@ export default async function CandidatesPage() {
                         </div>
                       </div>
 
-                      {/* =======================================
-                          FOTOS
-                      ======================================= */}
+                      {/* MINIATURAS */}
 
                       {visibleCandidates.length >
                       0 ? (
@@ -406,81 +414,81 @@ export default async function CandidatesPage() {
                             (
                               candidate,
                               index
-                            ) => {
-                              const displayName =
-                                candidate.name;
-
-                              return (
-                                <div
-                                  key={
-                                    candidate.id ||
-                                    `${candidate.name}-${index}`
-                                  }
-                                  title={
-                                    displayName
-                                  }
-                                  style={{
-                                    width: 48,
-                                    aspectRatio:
-                                      "3 / 4",
-                                    flexShrink: 0,
-                                    borderRadius: 8,
-                                    overflow:
-                                      "hidden",
-                                    background:
-                                      "#eef2f4",
-                                    border:
-                                      "1px solid #e4e7ec",
-                                  }}
-                                >
-                                  {candidate.photo_url ? (
-                                    <img
-                                      src={
-                                        candidate.photo_url
-                                      }
-                                      alt={
-                                        displayName
-                                      }
-                                      style={{
-                                        width:
-                                          "100%",
-                                        height:
-                                          "100%",
-                                        display:
-                                          "block",
-                                        objectFit:
-                                          "cover",
-                                        objectPosition:
-                                          "center top",
-                                      }}
-                                    />
-                                  ) : (
-                                    <div
-                                      style={{
-                                        width:
-                                          "100%",
-                                        height:
-                                          "100%",
-                                        display:
-                                          "flex",
-                                        alignItems:
-                                          "center",
-                                        justifyContent:
-                                          "center",
-                                        color:
-                                          "#98a2b3",
-                                        background:
-                                          "#f2f4f7",
-                                        fontSize:
-                                          20,
-                                      }}
-                                    >
-                                      👤
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            }
+                            ) => (
+                              <div
+                                key={
+                                  candidate.id ||
+                                  `${candidate.name}-${index}`
+                                }
+                                title={
+                                  candidate.name
+                                }
+                                style={{
+                                  width: 48,
+                                  aspectRatio:
+                                    "3 / 4",
+                                  flexShrink: 0,
+                                  borderRadius: 8,
+                                  overflow:
+                                    "hidden",
+                                  background:
+                                    "#eef2f4",
+                                  border:
+                                    "1px solid #e4e7ec",
+                                }}
+                              >
+                                {candidate.photo_url ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={
+                                      candidate.photo_url
+                                    }
+                                    alt={
+                                      candidate.name
+                                    }
+                                    style={{
+                                      width:
+                                        "100%",
+                                      height:
+                                        "100%",
+                                      display:
+                                        "block",
+                                      objectFit:
+                                        "cover",
+                                      objectPosition:
+                                        "center top",
+                                    }}
+                                  />
+                                ) : (
+                                  <div
+                                    style={{
+                                      width:
+                                        "100%",
+                                      height:
+                                        "100%",
+                                      display:
+                                        "flex",
+                                      alignItems:
+                                        "center",
+                                      justifyContent:
+                                        "center",
+                                      color:
+                                        "#157347",
+                                      background:
+                                        "#e9f7ef",
+                                      fontWeight:
+                                        900,
+                                      fontSize:
+                                        20,
+                                    }}
+                                  >
+                                    {candidate.name
+                                      .charAt(0)
+                                      .toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+                            )
                           )}
 
                           {remaining > 0 && (
@@ -523,9 +531,7 @@ export default async function CandidatesPage() {
                         </div>
                       )}
 
-                      {/* =======================================
-                          RODAPÉ
-                      ======================================= */}
+                      {/* RODAPÉ */}
 
                       <div
                         style={{
@@ -546,82 +552,196 @@ export default async function CandidatesPage() {
                   );
                 })}
               </div>
-            </div>
+            </section>
 
             {/* =================================================
-                TODOS OS CANDIDATOS
+                TODOS OS CANDIDATOS ESTADUAIS
             ================================================= */}
 
-            <div
+            <section
               style={{
-                marginTop: 60,
+                marginTop: 64,
               }}
             >
-              <h2
+              <div
                 style={{
-                  fontSize: 32,
-                  marginBottom: 6,
+                  marginBottom: 28,
                 }}
               >
-                Todos os candidatos publicados
-              </h2>
+                <span
+                  style={{
+                    display: "inline-block",
+                    color: "#157347",
+                    fontSize: 13,
+                    fontWeight: 900,
+                    letterSpacing: 1,
+                    marginBottom: 5,
+                  }}
+                >
+                  POR UNIDADE DA FEDERAÇÃO
+                </span>
 
-              <p
-                style={{
-                  color: "#667085",
-                  marginTop: 0,
-                  lineHeight: 1.6,
-                }}
-              >
-                Relação dos perfis atualmente
-                publicados na plataforma.
-              </p>
+                <h2
+                  style={{
+                    fontSize: 34,
+                    margin: "0 0 8px",
+                  }}
+                >
+                  Todos os candidatos publicados
+                </h2>
+
+                <p
+                  style={{
+                    color: "#667085",
+                    margin: 0,
+                    lineHeight: 1.6,
+                    maxWidth: 760,
+                  }}
+                >
+                  Os candidatos de abrangência
+                  estadual e distrital estão
+                  organizados abaixo por unidade
+                  da Federação.
+                </p>
+              </div>
 
               {error ? (
                 <div
                   className="card"
                   style={{
                     padding: 24,
-                    marginTop: 18,
                     color: "#b42318",
                   }}
                 >
                   Não foi possível carregar os
                   candidatos.
                 </div>
-              ) : candidates.length === 0 ? (
+              ) : stateCandidates.length === 0 ? (
                 <div
                   className="card"
                   style={{
                     padding: 24,
-                    marginTop: 18,
                     color: "#667085",
                   }}
                 >
-                  Nenhum candidato publicado
-                  ainda.
+                  Nenhum candidato estadual ou
+                  distrital publicado ainda.
                 </div>
               ) : (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fit,minmax(250px,1fr))",
-                    gap: 20,
-                    marginTop: 22,
-                  }}
-                >
-                  {candidates.map(
-                    (candidate) => (
-                      <CandidateCard
-                        candidate={candidate}
-                        key={candidate.id}
-                      />
-                    )
+                <div>
+                  {statesWithCandidates.map(
+                    (state, stateIndex) => {
+                      const stateList =
+                        candidatesByState[
+                          state.uf
+                        ] ?? [];
+
+                      return (
+                        <section
+                          key={state.uf}
+                          style={{
+                            marginTop:
+                              stateIndex === 0
+                                ? 0
+                                : 54,
+                          }}
+                        >
+                          {/* ESTADO */}
+
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems:
+                                "flex-end",
+                              justifyContent:
+                                "space-between",
+                              gap: 20,
+                              flexWrap: "wrap",
+                              paddingBottom: 14,
+                              borderBottom:
+                                "2px solid #157347",
+                            }}
+                          >
+                            <div>
+                              <div
+                                style={{
+                                  color:
+                                    "#157347",
+                                  fontSize: 13,
+                                  fontWeight:
+                                    900,
+                                  letterSpacing:
+                                    1,
+                                }}
+                              >
+                                {state.uf}
+                              </div>
+
+                              <h3
+                                style={{
+                                  fontSize: 28,
+                                  margin:
+                                    "3px 0 0",
+                                }}
+                              >
+                                {state.name}
+                              </h3>
+                            </div>
+
+                            <Link
+                              href={`/estado/${state.uf}`}
+                              style={{
+                                color:
+                                  "#157347",
+                                fontWeight:
+                                  800,
+                                textDecoration:
+                                  "none",
+                                fontSize: 14,
+                              }}
+                            >
+                              Ver página de{" "}
+                              {state.uf} →
+                            </Link>
+                          </div>
+
+                          {/* CARDS EM RETRATO */}
+
+                          <div
+                            style={{
+                              display: "grid",
+
+                              gridTemplateColumns:
+                                "repeat(auto-fill, minmax(210px, 260px))",
+
+                              gap: 22,
+
+                              marginTop: 24,
+
+                              alignItems:
+                                "stretch",
+                            }}
+                          >
+                            {stateList.map(
+                              (candidate) => (
+                                <CandidateCard
+                                  key={
+                                    candidate.id
+                                  }
+                                  candidate={
+                                    candidate
+                                  }
+                                />
+                              )
+                            )}
+                          </div>
+                        </section>
+                      );
+                    }
                   )}
                 </div>
               )}
-            </div>
+            </section>
           </div>
         </section>
       </main>
