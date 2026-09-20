@@ -1,124 +1,144 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import {
+  FormEvent,
+  useState,
+} from "react";
+
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 
-type Mode = "login" | "signup";
+type Mode =
+  | "login"
+  | "signup";
 
-export function MemberAuthForm({ mode }: { mode: Mode }) {
-  const signup = mode === "signup";
-  const router = useRouter();
+export function MemberAuthForm({
+  mode,
+}: {
+  mode: Mode;
+}) {
+  const signup =
+    mode === "signup";
 
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [loading, setLoading] =
+    useState(false);
 
-  async function redirectByProfile(
-    supabase: ReturnType<typeof createClient>,
-    userId: string
+  const [message, setMessage] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
+
+  async function submit(
+    e: FormEvent<HTMLFormElement>
   ) {
-    const { data: adminProfile, error: adminError } = await supabase
-      .from("admin_profiles")
-      .select("role")
-      .eq("id", userId)
-      .maybeSingle();
+    e.preventDefault();
 
-    if (adminError) {
-      console.error(
-        "Erro ao verificar perfil administrativo:",
-        adminError
-      );
-    }
-
-    if (
-      adminProfile?.role === "admin" ||
-      adminProfile?.role === "editor"
-    ) {
-      router.replace("/admin");
-      router.refresh();
+    if (loading) {
       return;
     }
-
-    router.replace("/membro");
-    router.refresh();
-  }
-
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
 
     setLoading(true);
     setError("");
     setMessage("");
 
-    const form = new FormData(e.currentTarget);
+    const form =
+      new FormData(
+        e.currentTarget
+      );
 
-    const email = String(
-      form.get("email") || ""
-    ).trim();
+    const email =
+      String(
+        form.get("email") || ""
+      )
+        .trim()
+        .toLowerCase();
 
-    const password = String(
-      form.get("password") || ""
-    );
+    const password =
+      String(
+        form.get("password") || ""
+      );
 
-    const supabase = createClient();
+    const supabase =
+      createClient();
 
     try {
-      /* =====================================================
-         CADASTRO
-      ===================================================== */
-
+      /*
+       * CADASTRO
+       */
       if (signup) {
-        const fullName = String(
-          form.get("full_name") || ""
-        ).trim();
+        const fullName =
+          String(
+            form.get(
+              "full_name"
+            ) || ""
+          ).trim();
 
-        const whatsapp = String(
-          form.get("whatsapp") || ""
-        ).trim();
+        const whatsapp =
+          String(
+            form.get(
+              "whatsapp"
+            ) || ""
+          ).trim();
 
-        const stateUf = String(
-          form.get("state_uf") || ""
-        )
-          .trim()
-          .toUpperCase();
+        const stateUf =
+          String(
+            form.get(
+              "state_uf"
+            ) || ""
+          )
+            .trim()
+            .toUpperCase();
 
-        const city = String(
-          form.get("city") || ""
-        ).trim();
+        const city =
+          String(
+            form.get(
+              "city"
+            ) || ""
+          ).trim();
 
-        const { data, error: signupError } =
-          await supabase.auth.signUp({
-            email,
-            password,
+        const {
+          data,
+          error:
+            signupError,
+        } =
+          await supabase.auth.signUp(
+            {
+              email,
+              password,
 
-            options: {
-              data: {
-                full_name: fullName,
-                whatsapp,
-                state_uf: stateUf,
-                city,
+              options: {
+                data: {
+                  full_name:
+                    fullName,
+                  whatsapp,
+                  state_uf:
+                    stateUf,
+                  city,
+                },
               },
-            },
-          });
+            }
+          );
 
         if (signupError) {
-          setError(signupError.message);
+          setError(
+            signupError.message
+          );
           return;
         }
 
         /*
-         * Usuário já recebeu uma sessão.
-         * Novo cadastro normal vai para /membro.
-         *
-         * Mesmo assim usamos a verificação por UUID para
-         * manter o fluxo consistente.
+         * Se o Supabase já criou
+         * uma sessão, seguimos para
+         * o servidor decidir o
+         * destino.
          */
-        if (data.session && data.user) {
-          await redirectByProfile(
-            supabase,
-            data.user.id
+        if (
+          data.session &&
+          data.user
+        ) {
+          window.location.assign(
+            "/acesso"
           );
 
           return;
@@ -131,44 +151,56 @@ export function MemberAuthForm({ mode }: { mode: Mode }) {
         return;
       }
 
-      /* =====================================================
-         LOGIN
-      ===================================================== */
-
+      /*
+       * LOGIN
+       */
       const {
         data,
-        error: loginError,
+        error:
+          loginError,
       } =
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        await supabase.auth
+          .signInWithPassword({
+            email,
+            password,
+          });
 
       if (loginError) {
-        setError(loginError.message);
+        setError(
+          loginError.message
+        );
         return;
       }
 
-      if (!data.user) {
+      if (
+        !data.user ||
+        !data.session
+      ) {
         setError(
-          "Não foi possível identificar o usuário autenticado."
+          "Não foi possível criar uma sessão válida."
         );
         return;
       }
 
       /*
-       * PONTO PRINCIPAL:
+       * IMPORTANTE:
        *
-       * não mandamos mais todo mundo para /membro.
+       * Não consultamos
+       * admin_profiles aqui.
        *
-       * O UUID autenticado é consultado em admin_profiles.
+       * A sessão já foi criada.
+       * Agora fazemos uma nova
+       * requisição completa ao
+       * servidor.
        */
-      await redirectByProfile(
-        supabase,
-        data.user.id
+      window.location.assign(
+        "/acesso"
       );
     } catch (err) {
-      console.error(err);
+      console.error(
+        "Erro de autenticação:",
+        err
+      );
 
       setError(
         "Ocorreu um erro ao realizar o acesso. Tente novamente."
@@ -258,22 +290,28 @@ export function MemberAuthForm({ mode }: { mode: Mode }) {
                 className="field"
                 name="full_name"
                 required
-                placeholder="Seu nome completo"
+                autoComplete="name"
               />
 
-              <div className="form-two">
-                <div>
-                  <label>
-                    WhatsApp
-                  </label>
+              <label>
+                WhatsApp
+              </label>
 
-                  <input
-                    className="field"
-                    name="whatsapp"
-                    placeholder="(61) 99999-9999"
-                  />
-                </div>
+              <input
+                className="field"
+                name="whatsapp"
+                type="tel"
+                autoComplete="tel"
+              />
 
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "110px 1fr",
+                  gap: 12,
+                }}
+              >
                 <div>
                   <label>
                     UF
@@ -286,17 +324,18 @@ export function MemberAuthForm({ mode }: { mode: Mode }) {
                     placeholder="DF"
                   />
                 </div>
+
+                <div>
+                  <label>
+                    Cidade
+                  </label>
+
+                  <input
+                    className="field"
+                    name="city"
+                  />
+                </div>
               </div>
-
-              <label>
-                Cidade
-              </label>
-
-              <input
-                className="field"
-                name="city"
-                placeholder="Sua cidade"
-              />
             </>
           )}
 
@@ -310,7 +349,6 @@ export function MemberAuthForm({ mode }: { mode: Mode }) {
             type="email"
             required
             autoComplete="email"
-            placeholder="voce@email.com"
           />
 
           <label>
@@ -328,63 +366,92 @@ export function MemberAuthForm({ mode }: { mode: Mode }) {
                 ? "new-password"
                 : "current-password"
             }
-            placeholder="Mínimo de 6 caracteres"
           />
 
-          {signup && (
-            <label className="consent">
-              <input
-                type="checkbox"
-                required
-              />
-
-              <span>
-                Li e aceito os Termos de Uso e a Política de Privacidade.
-              </span>
-            </label>
-          )}
-
           {error && (
-            <div className="form-error">
+            <div
+              style={{
+                marginTop: 14,
+                padding: 12,
+                borderRadius: 8,
+                background:
+                  "#fef3f2",
+                border:
+                  "1px solid #fecdca",
+                color:
+                  "#b42318",
+              }}
+            >
               {error}
             </div>
           )}
 
           {message && (
-            <div className="form-success">
+            <div
+              style={{
+                marginTop: 14,
+                padding: 12,
+                borderRadius: 8,
+                background:
+                  "#ecfdf3",
+                border:
+                  "1px solid #abefc6",
+                color:
+                  "#027a48",
+              }}
+            >
               {message}
             </div>
           )}
 
           <button
+            className="btn btn-primary"
             type="submit"
-            className="btn btn-primary member-submit"
             disabled={loading}
+            style={{
+              width: "100%",
+              marginTop: 20,
+              opacity:
+                loading
+                  ? 0.7
+                  : 1,
+            }}
           >
             {loading
-              ? "Verificando acesso..."
+              ? signup
+                ? "Criando conta..."
+                : "Entrando..."
               : signup
-              ? "FAZER PARTE DO MFB"
-              : "ENTRAR"}
+                ? "Criar conta"
+                : "Entrar"}
           </button>
 
-          <p className="member-switch">
-            {signup
-              ? "Já possui cadastro?"
-              : "Ainda não faz parte?"}{" "}
-
-            <Link
-              href={
-                signup
-                  ? "/entrar"
-                  : "/cadastro"
-              }
-            >
-              {signup
-                ? "Entrar"
-                : "Cadastre-se"}
-            </Link>
-          </p>
+          <div
+            className="member-auth-switch"
+            style={{
+              marginTop: 20,
+              textAlign:
+                "center",
+            }}
+          >
+            {signup ? (
+              <>
+                Já possui uma
+                conta?{" "}
+                <Link href="/entrar">
+                  Entrar
+                </Link>
+              </>
+            ) : (
+              <>
+                Ainda não possui
+                conta?{" "}
+                <Link href="/cadastro">
+                  Criar conta
+                </Link>
+              </>
+            )}
+          </div>
         </form>
       </section>
     </main>
