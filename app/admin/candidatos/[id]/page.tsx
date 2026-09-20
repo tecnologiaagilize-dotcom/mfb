@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import CandidateForm from "@/components/admin/CandidateForm";
 import CandidateOffices from "@/components/admin/CandidateOffices";
+import CandidateSources from "@/components/admin/CandidateSources";
 
 export const dynamic = "force-dynamic";
 
@@ -64,11 +65,23 @@ export default async function EditCandidatePage({
           </p>
         </div>
 
-        {/* Dados principais */}
+        {/* =====================================================
+            DADOS PRINCIPAIS
+        ===================================================== */}
+
         <CandidateForm initial={candidate} />
 
-        {/* Comitês e pontos de apoio */}
+        {/* =====================================================
+            COMITÊS E PONTOS DE APOIO
+        ===================================================== */}
+
         <CandidateOffices candidateId={candidate.id} />
+
+        {/* =====================================================
+            FONTES, REDES E CANAIS OFICIAIS
+        ===================================================== */}
+
+        <CandidateSources candidateId={candidate.id} />
       </div>
     </main>
   );
