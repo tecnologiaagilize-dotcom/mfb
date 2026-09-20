@@ -16,32 +16,44 @@ export default async function CandidatesPage() {
   const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from("candidates_public")
+    .from("candidates")
     .select("*")
     .eq("status", "published")
-    .order("state_uf")
-    .order("cargo")
-    .order("name");
+    .order("display_order", { ascending: true })
+    .order("name", { ascending: true });
 
   const candidates: Candidate[] =
     (data as Candidate[] | null) ?? [];
+
+  function sortByDisplayOrder(list: Candidate[]) {
+    return [...list].sort((a, b) => {
+      const orderA = Number((a as Candidate & { display_order?: number }).display_order ?? 1000);
+      const orderB = Number((b as Candidate & { display_order?: number }).display_order ?? 1000);
+      if (orderA !== orderB) return orderA - orderB;
+      return (a.name ?? "").localeCompare(b.name ?? "", "pt-BR", { sensitivity: "base" });
+    });
+  }
 
   /* =========================================================
      CANDIDATOS DE ABRANGÊNCIA NACIONAL
   ========================================================= */
 
-  const nationalCandidates = candidates.filter(
-    (candidate) =>
-      candidate.state_uf?.toUpperCase() === "BR"
+  const nationalCandidates = sortByDisplayOrder(
+    candidates.filter(
+      (candidate) =>
+        candidate.state_uf?.toUpperCase() === "BR"
+    )
   );
 
   /* =========================================================
      CANDIDATOS ESTADUAIS / DISTRITAIS
   ========================================================= */
 
-  const stateCandidates = candidates.filter(
-    (candidate) =>
-      candidate.state_uf?.toUpperCase() !== "BR"
+  const stateCandidates = sortByDisplayOrder(
+    candidates.filter(
+      (candidate) =>
+        candidate.state_uf?.toUpperCase() !== "BR"
+    )
   );
 
   /* =========================================================
@@ -71,6 +83,10 @@ export default async function CandidatesPage() {
       },
       {}
     );
+
+  Object.keys(candidatesByState).forEach((uf) => {
+    candidatesByState[uf] = sortByDisplayOrder(candidatesByState[uf]);
+  });
 
   /* =========================================================
      CONTAGEM POR ESTADO
