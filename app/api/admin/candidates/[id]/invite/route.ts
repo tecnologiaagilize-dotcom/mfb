@@ -1,76 +1,29 @@
-import {
-  NextRequest,
-  NextResponse,
-} from "next/server";
-
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-import {
-  candidateInviteExpiration,
-  generateCandidateInviteToken,
-  hashCandidateInviteToken,
-} from "@/lib/candidate-invites";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
 
-type RouteContext = {
-  params: Promise<{
-    id: string;
-  }>;
-};
-
-async function getStaff() {
-  const supabase =
-    await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return {
-      ok: false as const,
-      supabase,
-      user: null,
-    };
-  }
-
-  const {
-    data: profile,
-  } = await supabase
-    .from("admin_profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const authorized =
-    profile?.role === "admin" ||
-    profile?.role === "editor";
-
-  return {
-    ok: authorized,
-    supabase,
-    user,
-  };
-}
-
-/* ============================================================
-   GET — STATUS DO LINK
-============================================================ */
-
-export async function GET(
+export async function DELETE(
   _request: NextRequest,
-  context: RouteContext
+  context: {
+    params: Promise<{ id: string }>;
+  }
 ) {
   try {
-    const auth =
-      await getStaff();
+    const { id } = await context.params;
 
-    if (!auth.ok) {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
       return NextResponse.json(
         {
-          error: "Não autorizado.",
+          error: "Sessão administrativa não encontrada.",
         },
         {
           status: 401,
@@ -78,134 +31,38 @@ export async function GET(
       );
     }
 
-    const { id } =
-      await context.params;
-
     const {
-      data: invite,
-      error,
-    } = await auth.supabase
-      .from("candidate_edit_invites")
-      .select(
-        `
-          id,
-          candidate_id,
-          expires_at,
-          revoked_at,
-          submitted_at,
-          last_accessed_at,
-          access_count,
-          created_at
-        `
-      )
-      .eq("candidate_id", id)
-      .order(
-        "created_at",
-        {
-          ascending: false,
-        }
-      )
-      .limit(1)
+      data: profile,
+      error: profileError,
+    } = await supabase
+      .from("admin_profiles")
+      .select("role")
+      .eq("id", user.id)
       .maybeSingle();
 
-    if (error) {
-      return NextResponse.json(
-        {
-          error: error.message,
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    if (!invite) {
-      return NextResponse.json({
-        active: false,
-        invite: null,
-      });
-    }
-
-    const expired =
-      new Date(
-        invite.expires_at
-      ).getTime() <= Date.now();
-
-    const active =
-      !expired &&
-      !invite.revoked_at &&
-      !invite.submitted_at;
-
-    return NextResponse.json({
-      active,
-      expired,
-      revoked: Boolean(
-        invite.revoked_at
-      ),
-      submitted: Boolean(
-        invite.submitted_at
-      ),
-      invite,
-    });
-  } catch (error) {
-    console.error(
-      "GET candidate invite:",
-      error
-    );
-
-    return NextResponse.json(
-      {
-        error:
-          "Erro interno ao consultar o link.",
-      },
-      {
-        status: 500,
-      }
-    );
-  }
-}
-
-/* ============================================================
-   POST — GERAR LINK
-============================================================ */
-
-export async function POST(
-  request: NextRequest,
-  context: RouteContext
-) {
-  try {
-    const auth =
-      await getStaff();
-
     if (
-      !auth.ok ||
-      !auth.user
+      profileError ||
+      profile?.role !== "admin"
     ) {
       return NextResponse.json(
         {
-          error: "Não autorizado.",
+          error:
+            "Somente administradores podem excluir candidatos.",
         },
         {
-          status: 401,
+          status: 403,
         }
       );
     }
 
-    const { id } =
-      await context.params;
-
-    /*
-     * Verifica candidato.
-     */
+    const admin = createAdminClient();
 
     const {
       data: candidate,
       error: candidateError,
-    } = await auth.supabase
+    } = await admin
       .from("candidates")
-      .select(
-        "id, name, ballot_name"
-      )
+      .select("id, name, ballot_name")
       .eq("id", id)
       .maybeSingle();
 
@@ -213,7 +70,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            candidateError.message,
+            "Não foi possível consultar o candidato.",
         },
         {
           status: 500,
@@ -224,8 +81,7 @@ export async function POST(
     if (!candidate) {
       return NextResponse.json(
         {
-          error:
-            "Candidato não encontrado.",
+          error: "Candidato não encontrado.",
         },
         {
           status: 404,
@@ -234,153 +90,59 @@ export async function POST(
     }
 
     /*
-     * Revoga links anteriores
-     * ainda utilizáveis.
+     * Primeiro removemos os registros auxiliares
+     * conhecidos. Isso também torna a operação
+     * compatível caso alguma dessas relações não
+     * esteja configurada com ON DELETE CASCADE.
      */
 
-    const now =
-      new Date().toISOString();
+    const relatedTables = [
+      "candidate_edit_submissions",
+      "candidate_edit_invites",
+      "candidate_sources",
+      "candidate_offices",
+    ];
 
-    const {
-      error: revokeError,
-    } = await auth.supabase
-      .from("candidate_edit_invites")
-      .update({
-        revoked_at: now,
-      })
-      .eq("candidate_id", id)
-      .is("revoked_at", null)
-      .is("submitted_at", null);
+    for (const table of relatedTables) {
+      const { error } = await admin
+        .from(table)
+        .delete()
+        .eq("candidate_id", id);
 
-    if (revokeError) {
-      return NextResponse.json(
-        {
-          error:
-            revokeError.message,
-        },
-        {
-          status: 500,
-        }
-      );
+      /*
+       * Se uma instalação antiga não possuir alguma
+       * dessas tabelas, não interrompemos a exclusão.
+       * Restrições reais do banco ainda protegerão
+       * a exclusão final do candidato.
+       */
+      if (error) {
+        console.warn(
+          `Não foi possível limpar ${table}:`,
+          error.message
+        );
+      }
     }
 
-    /*
-     * Cria novo token.
-     */
-
-    const token =
-      generateCandidateInviteToken();
-
-    const tokenHash =
-      hashCandidateInviteToken(
-        token
-      );
-
-    const expiresAt =
-      candidateInviteExpiration();
-
-    const {
-      data: invite,
-      error: insertError,
-    } = await auth.supabase
-      .from("candidate_edit_invites")
-      .insert({
-        candidate_id: id,
-        token_hash: tokenHash,
-        expires_at:
-          expiresAt.toISOString(),
-        created_by:
-          auth.user.id,
-      })
-      .select(
-        `
-          id,
-          candidate_id,
-          expires_at,
-          created_at
-        `
-      )
-      .single();
-
-    if (
-      insertError ||
-      !invite
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            insertError?.message ||
-            "Não foi possível criar o link.",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    /*
-     * Atualiza situação.
-     */
-
-    const {
-      error: updateError,
-    } = await auth.supabase
+    const { error: deleteError } = await admin
       .from("candidates")
-      .update({
-        review_status:
-          "awaiting_completion",
-        updated_at: now,
-      })
+      .delete()
       .eq("id", id);
 
-    if (updateError) {
-      await auth.supabase
-        .from(
-          "candidate_edit_invites"
-        )
-        .update({
-          revoked_at:
-            new Date().toISOString(),
-        })
-        .eq("id", invite.id);
-
+    if (deleteError) {
       return NextResponse.json(
         {
           error:
-            updateError.message,
+            `O candidato não pôde ser excluído: ${deleteError.message}`,
         },
         {
-          status: 500,
+          status: 409,
         }
       );
     }
-
-    /*
-     * Preferimos o domínio configurado.
-     */
-
-    const configuredOrigin =
-      process.env
-        .NEXT_PUBLIC_SITE_URL
-        ?.trim()
-        .replace(/\/+$/, "");
-
-    const requestOrigin =
-      new URL(request.url).origin;
-
-    const origin =
-      configuredOrigin ||
-      requestOrigin;
-
-    const url =
-      `${origin}/completar-cadastro/${token}`;
 
     return NextResponse.json({
       success: true,
-      url,
-      expires_at:
-        invite.expires_at,
-      candidate: {
+      deletedCandidate: {
         id: candidate.id,
         name:
           candidate.ballot_name ||
@@ -389,97 +151,16 @@ export async function POST(
     });
   } catch (error) {
     console.error(
-      "POST candidate invite:",
+      "Erro ao excluir candidato:",
       error
     );
 
     return NextResponse.json(
       {
         error:
-          "Erro interno ao gerar o link.",
-      },
-      {
-        status: 500,
-      }
-    );
-  }
-}
-
-/* ============================================================
-   DELETE — REVOGAR
-============================================================ */
-
-export async function DELETE(
-  _request: NextRequest,
-  context: RouteContext
-) {
-  try {
-    const auth =
-      await getStaff();
-
-    if (!auth.ok) {
-      return NextResponse.json(
-        {
-          error: "Não autorizado.",
-        },
-        {
-          status: 401,
-        }
-      );
-    }
-
-    const { id } =
-      await context.params;
-
-    const {
-      error,
-    } = await auth.supabase
-      .from("candidate_edit_invites")
-      .update({
-        revoked_at:
-          new Date().toISOString(),
-      })
-      .eq("candidate_id", id)
-      .is("revoked_at", null)
-      .is("submitted_at", null);
-
-    if (error) {
-      return NextResponse.json(
-        {
-          error: error.message,
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    await auth.supabase
-      .from("candidates")
-      .update({
-        review_status: "draft",
-        updated_at:
-          new Date().toISOString(),
-      })
-      .eq("id", id)
-      .eq(
-        "review_status",
-        "awaiting_completion"
-      );
-
-    return NextResponse.json({
-      success: true,
-    });
-  } catch (error) {
-    console.error(
-      "DELETE candidate invite:",
-      error
-    );
-
-    return NextResponse.json(
-      {
-        error:
-          "Erro interno ao revogar o link.",
+          error instanceof Error
+            ? error.message
+            : "Erro interno ao excluir candidato.",
       },
       {
         status: 500,
