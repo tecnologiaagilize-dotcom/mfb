@@ -35,6 +35,7 @@ export default function CandidateForm({
 
     party: initial?.party ?? "",
     number: initial?.number ?? "",
+    display_order: Number(initial?.display_order ?? 1000),
 
     photo_url: initial?.photo_url ?? "",
 
@@ -336,6 +337,8 @@ export default function CandidateForm({
         scope === "municipal"
           ? form.city_name.trim()
           : null,
+
+      display_order: Number(form.display_order),
 
       photo_position_x:
         Number(
@@ -675,6 +678,23 @@ export default function CandidateForm({
               )
             }
           />
+        </label>
+
+        <label>
+          <span style={labelStyle}>
+            Ordem de exibição
+          </span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            className="field"
+            value={form.display_order}
+            onChange={(e) => set("display_order", Number(e.target.value))}
+          />
+          <div style={{ marginTop: 6, color: "#667085", fontSize: 12, lineHeight: 1.4 }}>
+            Menor número aparece primeiro. Ex.: 10, 20, 30.
+          </div>
         </label>
 
         <label>
