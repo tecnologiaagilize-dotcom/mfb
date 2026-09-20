@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
+
 import CandidateForm from "@/components/admin/CandidateForm";
 import CandidateOffices from "@/components/admin/CandidateOffices";
 import CandidateSources from "@/components/admin/CandidateSources";
+import CandidateInviteManager from "@/components/admin/CandidateInviteManager";
 
 export const dynamic = "force-dynamic";
 
@@ -11,15 +13,18 @@ export default async function EditCandidatePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id } =
+    await params;
 
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
 
-  const { data: candidate } = await supabase
-    .from("candidates")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  const { data: candidate } =
+    await supabase
+      .from("candidates")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
 
   if (!candidate) {
     return notFound();
@@ -33,7 +38,11 @@ export default async function EditCandidatePage({
           maxWidth: 1000,
         }}
       >
-        <div style={{ marginBottom: 25 }}>
+        <div
+          style={{
+            marginBottom: 25,
+          }}
+        >
           <div
             style={{
               fontSize: 14,
@@ -41,7 +50,9 @@ export default async function EditCandidatePage({
               marginBottom: 6,
             }}
           >
-            Central Administrativa / Apoiados
+            Central Administrativa
+            {" / "}
+            Apoiados
           </div>
 
           <h1
@@ -59,9 +70,16 @@ export default async function EditCandidatePage({
               marginTop: 8,
             }}
           >
-            {candidate.ballot_name || candidate.name}
-            {candidate.party ? ` • ${candidate.party}` : ""}
-            {candidate.number ? ` • ${candidate.number}` : ""}
+            {candidate.ballot_name ||
+              candidate.name}
+
+            {candidate.party
+              ? ` • ${candidate.party}`
+              : ""}
+
+            {candidate.number
+              ? ` • ${candidate.number}`
+              : ""}
           </p>
         </div>
 
@@ -69,19 +87,39 @@ export default async function EditCandidatePage({
             DADOS PRINCIPAIS
         ===================================================== */}
 
-        <CandidateForm initial={candidate} />
+        <CandidateForm
+          initial={candidate}
+        />
+
+        {/* =====================================================
+            LINK TEMPORÁRIO DE PREENCHIMENTO
+        ===================================================== */}
+
+        <CandidateInviteManager
+          candidateId={
+            candidate.id
+          }
+        />
 
         {/* =====================================================
             COMITÊS E PONTOS DE APOIO
         ===================================================== */}
 
-        <CandidateOffices candidateId={candidate.id} />
+        <CandidateOffices
+          candidateId={
+            candidate.id
+          }
+        />
 
         {/* =====================================================
             FONTES, REDES E CANAIS OFICIAIS
         ===================================================== */}
 
-        <CandidateSources candidateId={candidate.id} />
+        <CandidateSources
+          candidateId={
+            candidate.id
+          }
+        />
       </div>
     </main>
   );
