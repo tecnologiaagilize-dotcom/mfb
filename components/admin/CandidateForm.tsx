@@ -98,6 +98,9 @@ export default function CandidateForm({
   const [error, setError] =
     useState("");
 
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoUploadMessage, setPhotoUploadMessage] = useState("");
+
   /* =========================================================
      ALTERAÇÃO GENÉRICA
   ========================================================= */
@@ -176,6 +179,89 @@ export default function CandidateForm({
           : current.state_uf,
       city_name: "",
     }));
+  }
+
+  /* =========================================================
+     UPLOAD DA FOTO
+  ========================================================= */
+
+  async function uploadPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError("");
+    setPhotoUploadMessage("");
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setError("Formato não permitido. Use JPG, PNG ou WebP.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("A imagem excede o limite de 5 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    if (!initial?.id) {
+      setError("Salve primeiro o candidato e depois reabra a edição para enviar a foto.");
+      e.target.value = "";
+      return;
+    }
+
+    setPhotoUploading(true);
+    const supabase = createClient();
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      setError("Sessão administrativa não encontrada. Entre novamente no painel.");
+      setPhotoUploading(false);
+      e.target.value = "";
+      return;
+    }
+
+    const rawExtension = file.name.split(".").pop()?.toLowerCase() || "";
+    const extension = ["jpg", "jpeg", "png", "webp"].includes(rawExtension)
+      ? rawExtension
+      : file.type === "image/png"
+      ? "png"
+      : file.type === "image/webp"
+      ? "webp"
+      : "jpg";
+
+    const filePath = `${initial.id}/${Date.now()}-foto.${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("candidate-photos")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type,
+      });
+
+    if (uploadError) {
+      setError(`Não foi possível enviar a foto: ${uploadError.message}`);
+      setPhotoUploading(false);
+      e.target.value = "";
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("candidate-photos")
+      .getPublicUrl(filePath);
+
+    setForm((current) => ({
+      ...current,
+      photo_url: publicUrlData.publicUrl,
+    }));
+
+    setPhotoUploadMessage(
+      "Foto enviada com sucesso. Clique em “Salvar alterações” para gravá-la no cadastro."
+    );
+    setPhotoUploading(false);
+    e.target.value = "";
   }
 
   /* =========================================================
@@ -641,10 +727,50 @@ export default function CandidateForm({
           públicos do candidato.
         </p>
 
+        <div
+          style={{
+            marginTop: 18,
+            padding: 18,
+            border: "1px solid #d0d5dd",
+            borderRadius: 12,
+            background: "#f9fafb",
+          }}
+        >
+          <strong>Enviar foto do computador</strong>
+          <p style={{ color: "#667085", fontSize: 13, lineHeight: 1.6, margin: "7px 0 14px" }}>
+            JPG, PNG ou WebP, com até 5 MB. A imagem será armazenada no Supabase Storage.
+          </p>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            disabled={photoUploading || !initial?.id}
+            onChange={uploadPhoto}
+          />
+          {!initial?.id && (
+            <div style={{ marginTop: 10, color: "#b54708", fontSize: 13 }}>
+              Para candidato novo, salve primeiro o cadastro e depois reabra a edição para enviar a foto.
+            </div>
+          )}
+          {photoUploading && (
+            <div style={{ marginTop: 10, color: "#175cd3", fontSize: 13, fontWeight: 700 }}>
+              Enviando foto...
+            </div>
+          )}
+          {photoUploadMessage && (
+            <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: "#ecfdf3", color: "#027a48", fontSize: 13 }}>
+              {photoUploadMessage}
+            </div>
+          )}
+        </div>
+
+        <div style={{ margin: "18px 0 4px", color: "#667085", fontSize: 13, fontWeight: 700 }}>
+          OU USE UMA URL EXTERNA
+        </div>
+
         <label
           style={{
             display: "block",
-            marginTop: 18,
+            marginTop: 12,
           }}
         >
           <span style={labelStyle}>
