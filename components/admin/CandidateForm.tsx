@@ -732,32 +732,161 @@ export default function CandidateForm({
             marginTop: 18,
             padding: 18,
             border: "1px solid #d0d5dd",
-            borderRadius: 12,
+            borderRadius: 14,
             background: "#f9fafb",
           }}
         >
-          <strong>Enviar foto do computador</strong>
-          <p style={{ color: "#667085", fontSize: 13, lineHeight: 1.6, margin: "7px 0 14px" }}>
-            JPG, PNG ou WebP, com até 5 MB. A imagem será armazenada no Supabase Storage.
-          </p>
+          <div
+            style={{
+              fontWeight: 800,
+              marginBottom: 10,
+            }}
+          >
+            Foto do candidato
+          </div>
+
+          <label
+            htmlFor="candidate-photo-upload"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 180,
+              padding: 24,
+              border: "2px dashed #98a2b3",
+              borderRadius: 14,
+              background: photoUploading ? "#f2f4f7" : "#ffffff",
+              cursor:
+                photoUploading || !initial?.id
+                  ? "not-allowed"
+                  : "pointer",
+              textAlign: "center",
+              opacity: photoUploading || !initial?.id ? 0.7 : 1,
+            }}
+          >
+            <div
+              aria-hidden="true"
+              style={{
+                width: 64,
+                height: 52,
+                position: "relative",
+                marginBottom: 16,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: 5,
+                  top: 10,
+                  width: 27,
+                  height: 12,
+                  borderRadius: "7px 7px 0 0",
+                  background: "#157347",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: 3,
+                  right: 3,
+                  top: 18,
+                  bottom: 2,
+                  borderRadius: 8,
+                  background: "#157347",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: 27,
+                  top: 23,
+                  fontSize: 24,
+                  lineHeight: 1,
+                  color: "#ffffff",
+                  fontWeight: 900,
+                }}
+              >
+                ↑
+              </div>
+            </div>
+
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 800,
+                color: "#101828",
+              }}
+            >
+              {photoUploading
+                ? "Enviando foto..."
+                : "Clique para selecionar a foto"}
+            </div>
+
+            <div
+              style={{
+                marginTop: 7,
+                color: "#667085",
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
+            >
+              JPG, PNG ou WebP • máximo 5 MB
+            </div>
+
+            <div
+              style={{
+                marginTop: 12,
+                padding: "8px 14px",
+                borderRadius: 8,
+                background: "#157347",
+                color: "#ffffff",
+                fontSize: 13,
+                fontWeight: 800,
+              }}
+            >
+              📁 Escolher arquivo
+            </div>
+          </label>
+
           <input
+            id="candidate-photo-upload"
             type="file"
             accept="image/jpeg,image/png,image/webp"
             disabled={photoUploading || !initial?.id}
             onChange={uploadPhoto}
+            style={{ display: "none" }}
           />
+
           {!initial?.id && (
-            <div style={{ marginTop: 10, color: "#b54708", fontSize: 13 }}>
-              Para candidato novo, salve primeiro o cadastro e depois reabra a edição para enviar a foto.
+            <div
+              style={{
+                marginTop: 12,
+                padding: 10,
+                borderRadius: 8,
+                background: "#fffaeb",
+                color: "#b54708",
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
+            >
+              Para candidato novo, salve primeiro o cadastro e depois reabra
+              a edição para enviar a foto.
             </div>
           )}
-          {photoUploading && (
-            <div style={{ marginTop: 10, color: "#175cd3", fontSize: 13, fontWeight: 700 }}>
-              Enviando foto...
-            </div>
-          )}
+
           {photoUploadMessage && (
-            <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: "#ecfdf3", color: "#027a48", fontSize: 13 }}>
+            <div
+              style={{
+                marginTop: 12,
+                padding: 10,
+                borderRadius: 8,
+                background: "#ecfdf3",
+                color: "#027a48",
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
+            >
               {photoUploadMessage}
             </div>
           )}
