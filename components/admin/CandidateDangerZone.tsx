@@ -28,30 +28,61 @@ export default function CandidateDangerZone({
 
     try {
       const response = await fetch(
-        `/api/admin/candidates/${candidateId}`,
+        `/api/admin/candidates/${encodeURIComponent(candidateId)}`,
         {
           method: "DELETE",
+          headers: {
+            Accept: "application/json",
+          },
+          cache: "no-store",
         }
       );
 
-      const result = await response.json();
+      const contentType =
+        response.headers.get("content-type") || "";
 
-      if (!response.ok) {
+      let result: any = null;
+
+      if (contentType.includes("application/json")) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+
+        console.error(
+          "A API de exclusão retornou conteúdo não JSON:",
+          {
+            status: response.status,
+            statusText: response.statusText,
+            contentType,
+            body: text.substring(0, 1000),
+          }
+        );
+
         throw new Error(
-          result.error ||
-            "Não foi possível excluir o candidato."
+          response.status === 404
+            ? "A rota de exclusão não foi encontrada no servidor. Verifique /app/api/admin/candidates/[id]/route.ts."
+            : `O servidor retornou uma resposta inesperada (${response.status} ${response.statusText}).`
         );
       }
 
-      router.push("/admin/candidatos");
+      if (!response.ok) {
+        throw new Error(
+          result?.error ||
+            `Não foi possível excluir o candidato. Código ${response.status}.`
+        );
+      }
+
+      router.replace("/admin/candidatos");
       router.refresh();
     } catch (err) {
+      console.error("Erro ao excluir candidato:", err);
+
       setError(
         err instanceof Error
           ? err.message
           : "Não foi possível excluir o candidato."
       );
-
+    } finally {
       setDeleting(false);
     }
   }
@@ -96,11 +127,10 @@ export default function CandidateDangerZone({
           lineHeight: 1.6,
         }}
       >
-        Exclua este cadastro somente quando ele não
-        precisar mais permanecer no sistema. Esta ação
-        não deve ser utilizada apenas para retirar um
-        candidato do site público; para isso, altere a
-        situação de publicação para rascunho.
+        Exclua este cadastro somente quando ele não precisar
+        mais permanecer no sistema. Para apenas retirá-lo do
+        site público, altere sua situação de publicação para
+        rascunho.
       </p>
 
       {!open ? (
@@ -151,9 +181,8 @@ export default function CandidateDangerZone({
             }}
           >
             Você está solicitando a exclusão de{" "}
-            <strong>{candidateName}</strong>.
-            Para confirmar, digite{" "}
-            <strong>EXCLUIR</strong> abaixo.
+            <strong>{candidateName}</strong>. Para confirmar,
+            digite <strong>EXCLUIR</strong> abaixo.
           </p>
 
           <input
@@ -181,9 +210,14 @@ export default function CandidateDangerZone({
           {error && (
             <div
               style={{
-                marginTop: 12,
+                marginTop: 14,
+                padding: 12,
+                borderRadius: 8,
+                background: "#fff",
+                border: "1px solid #fda29b",
                 color: "#b42318",
                 fontWeight: 700,
+                lineHeight: 1.5,
               }}
             >
               {error}
@@ -201,8 +235,7 @@ export default function CandidateDangerZone({
             <button
               type="button"
               disabled={
-                deleting ||
-                confirmation !== "EXCLUIR"
+                deleting || confirmation !== "EXCLUIR"
               }
               onClick={deleteCandidate}
               style={{
@@ -213,12 +246,11 @@ export default function CandidateDangerZone({
                 color: "#fff",
                 fontWeight: 800,
                 cursor:
-                  deleting ||
-                  confirmation !== "EXCLUIR"
+                  deleting || confirmation !== "EXCLUIR"
                     ? "not-allowed"
                     : "pointer",
                 opacity:
-                  confirmation === "EXCLUIR"
+                  confirmation === "EXCLUIR" && !deleting
                     ? 1
                     : 0.55,
               }}
