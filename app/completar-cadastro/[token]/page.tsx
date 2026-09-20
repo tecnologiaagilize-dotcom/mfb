@@ -1,12 +1,9 @@
 import Link from "next/link";
 
-import {
-  createAdminClient,
-} from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { hashCandidateInviteToken } from "@/lib/candidate-invites";
 
-import {
-  hashCandidateInviteToken,
-} from "@/lib/candidate-invites";
+import CandidateExternalForm from "@/components/CandidateExternalForm";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,11 +19,29 @@ type Candidate = {
   name: string;
   ballot_name: string | null;
   photo_url: string | null;
+
   state_uf: string;
   city_name: string | null;
   cargo: string;
   party: string | null;
   number: string | null;
+
+  biography: string | null;
+  mini_cv: string | null;
+  political_project: string | null;
+  public_experience: string | null;
+  priority_areas: string | null;
+  proposals: string | null;
+
+  instagram_url: string | null;
+  facebook_url: string | null;
+  youtube_url: string | null;
+  website_url: string | null;
+  video_url: string | null;
+  external_page_url: string | null;
+
+  source_url: string | null;
+  source_notes: string | null;
 };
 
 async function validateInvite(
@@ -53,7 +68,9 @@ async function validateInvite(
       data: invite,
       error: inviteError,
     } = await supabase
-      .from("candidate_edit_invites")
+      .from(
+        "candidate_edit_invites"
+      )
       .select(
         `
           id,
@@ -138,7 +155,21 @@ async function validateInvite(
           city_name,
           cargo,
           party,
-          number
+          number,
+          biography,
+          mini_cv,
+          political_project,
+          public_experience,
+          priority_areas,
+          proposals,
+          instagram_url,
+          facebook_url,
+          youtube_url,
+          website_url,
+          video_url,
+          external_page_url,
+          source_url,
+          source_notes
         `
       )
       .eq(
@@ -163,17 +194,14 @@ async function validateInvite(
       };
     }
 
-    /*
-     * Registra acesso.
-     * A falha aqui não impede
-     * a abertura do formulário.
-     */
-
     await supabase
-      .from("candidate_edit_invites")
+      .from(
+        "candidate_edit_invites"
+      )
       .update({
         last_accessed_at:
           new Date().toISOString(),
+
         access_count:
           Number(
             invite.access_count ??
@@ -184,8 +212,10 @@ async function validateInvite(
 
     return {
       ok: true as const,
+
       expiresAt:
         invite.expires_at,
+
       candidate:
         candidate as Candidate,
     };
@@ -223,7 +253,7 @@ export default async function CandidateCompletionPage({
       <div
         style={{
           width: "100%",
-          maxWidth: 820,
+          maxWidth: 900,
           margin: "0 auto",
         }}
       >
@@ -236,8 +266,7 @@ export default async function CandidateCompletionPage({
           <Link
             href="/"
             style={{
-              display:
-                "inline-block",
+              display: "inline-block",
               textDecoration: "none",
               color: "#157347",
               fontSize: 21,
@@ -269,7 +298,8 @@ export default async function CandidateCompletionPage({
             }}
           >
             Revise e complemente as
-            informações do seu cadastro.
+            informações antes de
+            enviá-las para análise.
           </p>
         </header>
 
@@ -297,7 +327,6 @@ export default async function CandidateCompletionPage({
               style={{
                 margin:
                   "0 0 10px",
-                color: "#101828",
               }}
             >
               Link indisponível
@@ -307,7 +336,6 @@ export default async function CandidateCompletionPage({
               style={{
                 margin: 0,
                 color: "#667085",
-                lineHeight: 1.6,
               }}
             >
               {result.message}
@@ -316,7 +344,8 @@ export default async function CandidateCompletionPage({
         ) : (
           <section
             style={{
-              padding: 28,
+              padding:
+                "28px clamp(18px, 4vw, 36px)",
               border:
                 "1px solid #d0d5dd",
               borderRadius: 16,
@@ -405,8 +434,6 @@ export default async function CandidateCompletionPage({
                     margin:
                       "0 0 8px",
                     fontSize: 28,
-                    color:
-                      "#101828",
                   }}
                 >
                   {result.candidate
@@ -433,11 +460,6 @@ export default async function CandidateCompletionPage({
                     : ""}
 
                   {result.candidate
-                    .city_name
-                    ? ` • ${result.candidate.city_name}`
-                    : ""}
-
-                  {result.candidate
                     .party
                     ? ` • ${result.candidate.party}`
                     : ""}
@@ -452,72 +474,43 @@ export default async function CandidateCompletionPage({
 
             <div
               style={{
-                marginTop: 26,
-                padding: 18,
-                borderRadius: 12,
+                marginTop: 22,
+                padding: 15,
+                borderRadius: 10,
                 background:
                   "#ecfdf3",
                 border:
                   "1px solid #abefc6",
+                color: "#027a48",
               }}
             >
-              <strong
-                style={{
-                  color:
-                    "#027a48",
-                }}
-              >
-                ✓ Link validado com
-                sucesso
+              <strong>
+                ✓ Link validado
               </strong>
-
-              <p
-                style={{
-                  margin:
-                    "7px 0 0",
-                  color:
-                    "#475467",
-                  lineHeight: 1.6,
-                }}
-              >
-                O acesso corresponde a
-                este cadastro. Você
-                poderá revisar e
-                complementar suas
-                informações antes de
-                enviá-las para análise
-                da equipe responsável.
-              </p>
+              {" — "}
+              válido até{" "}
+              {new Intl.DateTimeFormat(
+                "pt-BR",
+                {
+                  dateStyle: "short",
+                  timeStyle: "short",
+                  timeZone:
+                    "America/Sao_Paulo",
+                }
+              ).format(
+                new Date(
+                  result.expiresAt
+                )
+              )}
+              .
             </div>
 
-            <p
-              style={{
-                margin:
-                  "18px 0 0",
-                color: "#667085",
-                fontSize: 13,
-              }}
-            >
-              Link válido até{" "}
-              <strong>
-                {new Intl.DateTimeFormat(
-                  "pt-BR",
-                  {
-                    dateStyle:
-                      "short",
-                    timeStyle:
-                      "short",
-                    timeZone:
-                      "America/Sao_Paulo",
-                  }
-                ).format(
-                  new Date(
-                    result.expiresAt
-                  )
-                )}
-              </strong>
-              .
-            </p>
+            <CandidateExternalForm
+              token={token}
+              candidate={
+                result.candidate
+              }
+            />
           </section>
         )}
 
