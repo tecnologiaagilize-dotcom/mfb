@@ -1,32 +1,99 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import {
+  createClient,
+} from "@/lib/supabase/server";
+
+import {
+  redirect,
+} from "next/navigation";
+
 import Link from "next/link";
 
-import { AdminShell } from "@/components/admin/AdminShell";
+import {
+  AdminShell,
+} from "@/components/admin/AdminShell";
+
 import CandidateOrderManager from "@/components/admin/CandidateOrderManager";
 
 export const dynamic =
   "force-dynamic";
 
-export default async function Page() {
+export default async function CandidatesAdminPage() {
   const supabase =
     await createClient();
 
+  /*
+   * 1. CONFIRMA SESSÃO
+   */
   const {
     data: { user },
+    error: userError,
   } =
     await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/admin/login");
+  if (
+    userError ||
+    !user
+  ) {
+    redirect(
+      "/admin/login"
+    );
   }
 
+  /*
+   * 2. CONFIRMA AUTORIZAÇÃO
+   */
+  const {
+    data: adminProfile,
+    error: profileError,
+  } = await supabase
+    .from("admin_profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (
+    profileError ||
+    !adminProfile ||
+    (
+      adminProfile.role !==
+        "admin" &&
+      adminProfile.role !==
+        "editor"
+    )
+  ) {
+    redirect(
+      "/admin/login"
+    );
+  }
+
+  /*
+   * 3. CARREGA CANDIDATOS
+   */
   const {
     data,
     error,
   } = await supabase
     .from("candidates")
-    .select("*")
+    .select(
+      `
+        id,
+        name,
+        ballot_name,
+        photo_url,
+        photo_position_x,
+        photo_position_y,
+        photo_zoom,
+        state_uf,
+        city_name,
+        cargo,
+        party,
+        number,
+        status,
+        review_status,
+        display_order,
+        created_at
+      `
+    )
     .order(
       "created_at",
       {
@@ -39,10 +106,10 @@ export default async function Page() {
 
   return (
     <AdminShell
-      email={user.email}
+      email={
+        user.email
+      }
     >
-      {/* CABEÇALHO */}
-
       <div className="admin-heading">
         <div>
           <span className="badge">
@@ -69,164 +136,91 @@ export default async function Page() {
         </Link>
       </div>
 
-      {/* ===============================================
-          ORGANIZAÇÃO DOS CARDS
-      =============================================== */}
-
-      <CandidateOrderManager
-        candidates={candidates.map(
-          (candidate: any) => ({
-            id:
-              candidate.id,
-
-            name:
-              candidate.name,
-
-            ballot_name:
-              candidate.ballot_name,
-
-            photo_url:
-              candidate.photo_url,
-
-            state_uf:
-              candidate.state_uf,
-
-            cargo:
-              candidate.cargo,
-
-            party:
-              candidate.party,
-
-            status:
-              candidate.status,
-
-            display_order:
-              candidate.display_order ??
-              1000,
-          })
-        )}
-      />
-
-      {/* ===============================================
-          TABELA DE CADASTROS
-      =============================================== */}
-
-      <section
-        className="admin-panel"
-        style={{
-          marginTop: 24,
-        }}
-      >
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>
-                  Nome
-                </th>
-
-                <th>
-                  Estado
-                </th>
-
-                <th>
-                  Cargo
-                </th>
-
-                <th>
-                  Partido
-                </th>
-
-                <th>
-                  Status
-                </th>
-
-                <th>
-                  Posição
-                </th>
-
-                <th>
-                  Ação
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {candidates.map(
-                (c: any) => (
-                  <tr
-                    key={
-                      c.id
-                    }
-                  >
-                    <td>
-                      <b>
-                        {c.name}
-                      </b>
-                    </td>
-
-                    <td>
-                      {c.state_uf}
-                    </td>
-
-                    <td>
-                      {c.cargo}
-                    </td>
-
-                    <td>
-                      {c.party ??
-                        "—"}
-                    </td>
-
-                    <td>
-                      <span
-                        className={`status-pill ${c.status}`}
-                      >
-                        {c.status ===
-                        "published"
-                          ? "Publicado"
-                          : "Rascunho"}
-                      </span>
-                    </td>
-
-                    <td>
-                      {c.display_order ??
-                        1000}
-                    </td>
-
-                    <td>
-                      <Link
-                        href={`/admin/candidatos/${c.id}`}
-                        className="admin-edit"
-                      >
-                        Editar
-                      </Link>
-                    </td>
-                  </tr>
-                )
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {error && (
-        <div
+      {error ? (
+        <section
+          className="admin-panel"
           style={{
-            marginTop: 16,
-            padding: 14,
-            borderRadius: 10,
-            background:
-              "#fef3f2",
-            color:
-              "#b42318",
+            padding: 22,
           }}
         >
-          Não foi possível
-          carregar todos os
-          candidatos:{" "}
-          {error.message}
-        </div>
+          <div
+            style={{
+              padding: 14,
+              borderRadius: 10,
+              background:
+                "#fef3f2",
+              border:
+                "1px solid #fecdca",
+              color:
+                "#b42318",
+            }}
+          >
+            <strong>
+              Não foi possível
+              carregar os
+              candidatos.
+            </strong>
+
+            <div
+              style={{
+                marginTop: 6,
+              }}
+            >
+              {error.message}
+            </div>
+          </div>
+        </section>
+      ) : (
+        <CandidateOrderManager
+          candidates={candidates.map(
+            (candidate) => ({
+              id:
+                candidate.id,
+
+              name:
+                candidate.name,
+
+              ballot_name:
+                candidate.ballot_name,
+
+              photo_url:
+                candidate.photo_url,
+
+              photo_position_x:
+                candidate.photo_position_x,
+
+              photo_position_y:
+                candidate.photo_position_y,
+
+              photo_zoom:
+                candidate.photo_zoom,
+
+              state_uf:
+                candidate.state_uf,
+
+              city_name:
+                candidate.city_name,
+
+              cargo:
+                candidate.cargo,
+
+              party:
+                candidate.party,
+
+              number:
+                candidate.number,
+
+              status:
+                candidate.status,
+
+              review_status:
+                candidate.review_status,
+
+              display_order:
+                candidate.display_order,
+            })
+          )}
+        />
       )}
     </AdminShell>
   );
