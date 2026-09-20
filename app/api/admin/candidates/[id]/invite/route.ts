@@ -14,88 +14,63 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/* ============================================================
-   AUTORIZAÇÃO ADMIN / EDITOR
-============================================================ */
+type RouteContext = {
+  params: Promise<{
+    id: string;
+  }>;
+};
 
-async function getAuthorizedStaff() {
-  const supabase = await createClient();
+async function getStaff() {
+  const supabase =
+    await createClient();
 
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) {
+  if (!user) {
     return {
-      authorized: false as const,
+      ok: false as const,
       supabase,
       user: null,
-      role: null,
     };
   }
 
   const {
     data: profile,
-    error: profileError,
   } = await supabase
     .from("admin_profiles")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profileError) {
-    return {
-      authorized: false as const,
-      supabase,
-      user,
-      role: null,
-    };
-  }
-
-  const role = profile?.role ?? null;
-
-  if (
-    role !== "admin" &&
-    role !== "editor"
-  ) {
-    return {
-      authorized: false as const,
-      supabase,
-      user,
-      role,
-    };
-  }
+  const authorized =
+    profile?.role === "admin" ||
+    profile?.role === "editor";
 
   return {
-    authorized: true as const,
+    ok: authorized,
     supabase,
     user,
-    role,
   };
 }
 
 /* ============================================================
-   GET
-   CONSULTAR O ÚLTIMO CONVITE DO CANDIDATO
+   GET — STATUS DO LINK
 ============================================================ */
 
 export async function GET(
   _request: NextRequest,
-  context: {
-    params: Promise<{
-      id: string;
-    }>;
-  }
+  context: RouteContext
 ) {
   try {
     const auth =
-      await getAuthorizedStaff();
+      await getStaff();
 
-    if (!auth.authorized) {
+    if (!auth.ok) {
       return NextResponse.json(
         {
-          error: "Acesso não autorizado.",
+          error: "Não autorizado.",
         },
         {
           status: 401,
@@ -106,63 +81,11 @@ export async function GET(
     const { id } =
       await context.params;
 
-    if (!id) {
-      return NextResponse.json(
-        {
-          error:
-            "ID do candidato não informado.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    /* --------------------------------------------------------
-       Confirma se o candidato existe
-    -------------------------------------------------------- */
-
-    const {
-      data: candidate,
-      error: candidateError,
-    } = await auth.supabase
-      .from("candidates")
-      .select(
-        `
-          id,
-          name,
-          ballot_name
-        `
-      )
-      .eq("id", id)
-      .maybeSingle();
-
-    if (
-      candidateError ||
-      !candidate
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Candidato não encontrado.",
-        },
-        {
-          status: 404,
-        }
-      );
-    }
-
-    /* --------------------------------------------------------
-       Busca o convite mais recente
-    -------------------------------------------------------- */
-
     const {
       data: invite,
-      error: inviteError,
+      error,
     } = await auth.supabase
-      .from(
-        "candidate_edit_invites"
-      )
+      .from("candidate_edit_invites")
       .select(
         `
           id,
@@ -175,10 +98,7 @@ export async function GET(
           created_at
         `
       )
-      .eq(
-        "candidate_id",
-        id
-      )
+      .eq("candidate_id", id)
       .order(
         "created_at",
         {
@@ -188,12 +108,10 @@ export async function GET(
       .limit(1)
       .maybeSingle();
 
-    if (inviteError) {
+    if (error) {
       return NextResponse.json(
         {
-          error:
-            "Não foi possível consultar o convite: " +
-            inviteError.message,
+          error: error.message,
         },
         {
           status: 500,
@@ -204,54 +122,41 @@ export async function GET(
     if (!invite) {
       return NextResponse.json({
         active: false,
-        expired: false,
-        submitted: false,
-        revoked: false,
         invite: null,
       });
     }
 
-    const expiration =
+    const expired =
       new Date(
         invite.expires_at
-      ).getTime();
-
-    const expired =
-      Number.isNaN(expiration) ||
-      expiration <= Date.now();
-
-    const revoked =
-      Boolean(
-        invite.revoked_at
-      );
-
-    const submitted =
-      Boolean(
-        invite.submitted_at
-      );
+      ).getTime() <= Date.now();
 
     const active =
       !expired &&
-      !revoked &&
-      !submitted;
+      !invite.revoked_at &&
+      !invite.submitted_at;
 
     return NextResponse.json({
       active,
       expired,
-      revoked,
-      submitted,
+      revoked: Boolean(
+        invite.revoked_at
+      ),
+      submitted: Boolean(
+        invite.submitted_at
+      ),
       invite,
     });
   } catch (error) {
     console.error(
-      "Admin candidate invite GET:",
+      "GET candidate invite:",
       error
     );
 
     return NextResponse.json(
       {
         error:
-          "Erro interno ao consultar o convite.",
+          "Erro interno ao consultar o link.",
       },
       {
         status: 500,
@@ -261,30 +166,24 @@ export async function GET(
 }
 
 /* ============================================================
-   POST
-   GERAR NOVO LINK DE 48 HORAS
+   POST — GERAR LINK
 ============================================================ */
 
 export async function POST(
   request: NextRequest,
-  context: {
-    params: Promise<{
-      id: string;
-    }>;
-  }
+  context: RouteContext
 ) {
   try {
     const auth =
-      await getAuthorizedStaff();
+      await getStaff();
 
     if (
-      !auth.authorized ||
+      !auth.ok ||
       !auth.user
     ) {
       return NextResponse.json(
         {
-          error:
-            "Acesso não autorizado.",
+          error: "Não autorizado.",
         },
         {
           status: 401,
@@ -295,21 +194,9 @@ export async function POST(
     const { id } =
       await context.params;
 
-    if (!id) {
-      return NextResponse.json(
-        {
-          error:
-            "ID do candidato não informado.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    /* --------------------------------------------------------
-       Confirma se o candidato existe
-    -------------------------------------------------------- */
+    /*
+     * Verifica candidato.
+     */
 
     const {
       data: candidate,
@@ -317,19 +204,24 @@ export async function POST(
     } = await auth.supabase
       .from("candidates")
       .select(
-        `
-          id,
-          name,
-          ballot_name
-        `
+        "id, name, ballot_name"
       )
       .eq("id", id)
       .maybeSingle();
 
-    if (
-      candidateError ||
-      !candidate
-    ) {
+    if (candidateError) {
+      return NextResponse.json(
+        {
+          error:
+            candidateError.message,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    if (!candidate) {
       return NextResponse.json(
         {
           error:
@@ -341,40 +233,29 @@ export async function POST(
       );
     }
 
+    /*
+     * Revoga links anteriores
+     * ainda utilizáveis.
+     */
+
     const now =
       new Date().toISOString();
-
-    /* --------------------------------------------------------
-       Revoga convites anteriores ainda não enviados
-    -------------------------------------------------------- */
 
     const {
       error: revokeError,
     } = await auth.supabase
-      .from(
-        "candidate_edit_invites"
-      )
+      .from("candidate_edit_invites")
       .update({
         revoked_at: now,
       })
-      .eq(
-        "candidate_id",
-        id
-      )
-      .is(
-        "revoked_at",
-        null
-      )
-      .is(
-        "submitted_at",
-        null
-      );
+      .eq("candidate_id", id)
+      .is("revoked_at", null)
+      .is("submitted_at", null);
 
     if (revokeError) {
       return NextResponse.json(
         {
           error:
-            "Não foi possível revogar os links anteriores: " +
             revokeError.message,
         },
         {
@@ -383,18 +264,12 @@ export async function POST(
       );
     }
 
-    /* --------------------------------------------------------
-       Gera token aleatório
-    -------------------------------------------------------- */
+    /*
+     * Cria novo token.
+     */
 
     const token =
       generateCandidateInviteToken();
-
-    /*
-     * O token puro NÃO será salvo no banco.
-     *
-     * Armazenamos somente SHA-256.
-     */
 
     const tokenHash =
       hashCandidateInviteToken(
@@ -404,26 +279,16 @@ export async function POST(
     const expiresAt =
       candidateInviteExpiration();
 
-    /* --------------------------------------------------------
-       Cria convite
-    -------------------------------------------------------- */
-
     const {
       data: invite,
-      error: inviteError,
+      error: insertError,
     } = await auth.supabase
-      .from(
-        "candidate_edit_invites"
-      )
+      .from("candidate_edit_invites")
       .insert({
         candidate_id: id,
-
-        token_hash:
-          tokenHash,
-
+        token_hash: tokenHash,
         expires_at:
           expiresAt.toISOString(),
-
         created_by:
           auth.user.id,
       })
@@ -438,17 +303,14 @@ export async function POST(
       .single();
 
     if (
-      inviteError ||
+      insertError ||
       !invite
     ) {
       return NextResponse.json(
         {
           error:
-            "Não foi possível gerar o convite: " +
-            (
-              inviteError?.message ??
-              "Erro desconhecido."
-            ),
+            insertError?.message ||
+            "Não foi possível criar o link.",
         },
         {
           status: 500,
@@ -456,29 +318,22 @@ export async function POST(
       );
     }
 
-    /* --------------------------------------------------------
-       Atualiza fluxo administrativo
-    -------------------------------------------------------- */
+    /*
+     * Atualiza situação.
+     */
 
     const {
-      error:
-        candidateUpdateError,
+      error: updateError,
     } = await auth.supabase
       .from("candidates")
       .update({
         review_status:
           "awaiting_completion",
+        updated_at: now,
       })
       .eq("id", id);
 
-    if (
-      candidateUpdateError
-    ) {
-      /*
-       * Se houver erro, o convite recém-criado
-       * é imediatamente revogado.
-       */
-
+    if (updateError) {
       await auth.supabase
         .from(
           "candidate_edit_invites"
@@ -487,16 +342,12 @@ export async function POST(
           revoked_at:
             new Date().toISOString(),
         })
-        .eq(
-          "id",
-          invite.id
-        );
+        .eq("id", invite.id);
 
       return NextResponse.json(
         {
           error:
-            "O convite foi cancelado porque não foi possível atualizar o cadastro: " +
-            candidateUpdateError.message,
+            updateError.message,
         },
         {
           status: 500,
@@ -504,81 +355,48 @@ export async function POST(
       );
     }
 
-    /* --------------------------------------------------------
-       Monta URL
-    -------------------------------------------------------- */
-
-    const requestOrigin =
-      new URL(
-        request.url
-      ).origin;
-
     /*
-     * Em produção podemos usar NEXT_PUBLIC_SITE_URL.
-     *
-     * Em preview do Vercel usamos automaticamente
-     * o domínio da própria requisição.
+     * Preferimos o domínio configurado.
      */
 
-    const configuredSiteUrl =
+    const configuredOrigin =
       process.env
         .NEXT_PUBLIC_SITE_URL
         ?.trim()
-        .replace(
-          /\/+$/,
-          ""
-        );
+        .replace(/\/+$/, "");
+
+    const requestOrigin =
+      new URL(request.url).origin;
 
     const origin =
-      configuredSiteUrl ||
+      configuredOrigin ||
       requestOrigin;
 
-    const inviteUrl =
+    const url =
       `${origin}/completar-cadastro/${token}`;
-
-    /* --------------------------------------------------------
-       O TOKEN PURO É DEVOLVIDO SOMENTE NESTA RESPOSTA.
-    -------------------------------------------------------- */
 
     return NextResponse.json({
       success: true,
-
+      url,
+      expires_at:
+        invite.expires_at,
       candidate: {
-        id:
-          candidate.id,
-
+        id: candidate.id,
         name:
           candidate.ballot_name ||
           candidate.name,
       },
-
-      invite: {
-        id:
-          invite.id,
-
-        candidate_id:
-          invite.candidate_id,
-
-        expires_at:
-          invite.expires_at,
-
-        created_at:
-          invite.created_at,
-      },
-
-      url:
-        inviteUrl,
     });
   } catch (error) {
     console.error(
-      "Admin candidate invite POST:",
+      "POST candidate invite:",
       error
     );
 
     return NextResponse.json(
       {
         error:
-          "Erro interno ao gerar o convite.",
+          "Erro interno ao gerar o link.",
       },
       {
         status: 500,
@@ -588,27 +406,21 @@ export async function POST(
 }
 
 /* ============================================================
-   DELETE
-   REVOGAR LINK DO CANDIDATO
+   DELETE — REVOGAR
 ============================================================ */
 
 export async function DELETE(
   _request: NextRequest,
-  context: {
-    params: Promise<{
-      id: string;
-    }>;
-  }
+  context: RouteContext
 ) {
   try {
     const auth =
-      await getAuthorizedStaff();
+      await getStaff();
 
-    if (!auth.authorized) {
+    if (!auth.ok) {
       return NextResponse.json(
         {
-          error:
-            "Acesso não autorizado.",
+          error: "Não autorizado.",
         },
         {
           status: 401,
@@ -619,53 +431,22 @@ export async function DELETE(
     const { id } =
       await context.params;
 
-    if (!id) {
-      return NextResponse.json(
-        {
-          error:
-            "ID do candidato não informado.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const now =
-      new Date().toISOString();
-
-    /* --------------------------------------------------------
-       Revoga links ainda não enviados
-    -------------------------------------------------------- */
-
     const {
-      error: revokeError,
+      error,
     } = await auth.supabase
-      .from(
-        "candidate_edit_invites"
-      )
+      .from("candidate_edit_invites")
       .update({
-        revoked_at: now,
+        revoked_at:
+          new Date().toISOString(),
       })
-      .eq(
-        "candidate_id",
-        id
-      )
-      .is(
-        "revoked_at",
-        null
-      )
-      .is(
-        "submitted_at",
-        null
-      );
+      .eq("candidate_id", id)
+      .is("revoked_at", null)
+      .is("submitted_at", null);
 
-    if (revokeError) {
+    if (error) {
       return NextResponse.json(
         {
-          error:
-            "Não foi possível revogar o convite: " +
-            revokeError.message,
+          error: error.message,
         },
         {
           status: 500,
@@ -673,21 +454,14 @@ export async function DELETE(
       );
     }
 
-    /* --------------------------------------------------------
-       Se ainda estava aguardando preenchimento,
-       retorna o fluxo para rascunho.
-    -------------------------------------------------------- */
-
     await auth.supabase
       .from("candidates")
       .update({
-        review_status:
-          "draft",
+        review_status: "draft",
+        updated_at:
+          new Date().toISOString(),
       })
-      .eq(
-        "id",
-        id
-      )
+      .eq("id", id)
       .eq(
         "review_status",
         "awaiting_completion"
@@ -698,14 +472,14 @@ export async function DELETE(
     });
   } catch (error) {
     console.error(
-      "Admin candidate invite DELETE:",
+      "DELETE candidate invite:",
       error
     );
 
     return NextResponse.json(
       {
         error:
-          "Erro interno ao revogar o convite.",
+          "Erro interno ao revogar o link.",
       },
       {
         status: 500,
