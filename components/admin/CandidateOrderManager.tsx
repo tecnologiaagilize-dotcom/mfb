@@ -1,40 +1,70 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-type CandidateOrderItem = {
+import { createClient } from "@/lib/supabase/browser";
+
+type CandidateItem = {
   id: string;
   name: string;
   ballot_name?: string | null;
   photo_url?: string | null;
+
+  photo_position_x?: number | null;
+  photo_position_y?: number | null;
+  photo_zoom?: number | null;
+
   state_uf?: string | null;
+  city_name?: string | null;
+
   cargo?: string | null;
   party?: string | null;
+  number?: string | null;
+
   status?: string | null;
+  review_status?: string | null;
+
   display_order?: number | null;
 };
 
 export default function CandidateOrderManager({
   candidates,
 }: {
-  candidates: CandidateOrderItem[];
+  candidates: CandidateItem[];
 }) {
   const router = useRouter();
 
+  /*
+   * Publicados aparecem primeiro,
+   * seguindo a ordem manual.
+   *
+   * Rascunhos aparecem depois,
+   * em ordem alfabética.
+   */
   const initialItems = useMemo(() => {
-    return [...candidates]
-      .filter((candidate) => candidate.status === "published")
+    const published = candidates
+      .filter(
+        (candidate) =>
+          candidate.status === "published"
+      )
       .sort((a, b) => {
-        const orderA = Number(a.display_order ?? 1000);
-        const orderB = Number(b.display_order ?? 1000);
+        const orderA = Number(
+          a.display_order ?? 1000
+        );
+
+        const orderB = Number(
+          b.display_order ?? 1000
+        );
 
         if (orderA !== orderB) {
           return orderA - orderB;
         }
 
-        return (a.ballot_name || a.name).localeCompare(
+        return (
+          a.ballot_name || a.name
+        ).localeCompare(
           b.ballot_name || b.name,
           "pt-BR",
           {
@@ -42,10 +72,34 @@ export default function CandidateOrderManager({
           }
         );
       });
+
+    const drafts = candidates
+      .filter(
+        (candidate) =>
+          candidate.status !== "published"
+      )
+      .sort((a, b) =>
+        (
+          a.ballot_name || a.name
+        ).localeCompare(
+          b.ballot_name || b.name,
+          "pt-BR",
+          {
+            sensitivity: "base",
+          }
+        )
+      );
+
+    return [
+      ...published,
+      ...drafts,
+    ];
   }, [candidates]);
 
   const [items, setItems] =
-    useState<CandidateOrderItem[]>(initialItems);
+    useState<CandidateItem[]>(
+      initialItems
+    );
 
   const [saving, setSaving] =
     useState(false);
@@ -56,37 +110,74 @@ export default function CandidateOrderManager({
   const [error, setError] =
     useState("");
 
-  function move(
-    index: number,
+  const publishedItems =
+    items.filter(
+      (candidate) =>
+        candidate.status === "published"
+    );
+
+  /*
+   * Move somente candidatos publicados.
+   *
+   * Rascunhos não participam da
+   * ordenação pública.
+   */
+  function movePublished(
+    candidateId: string,
     direction: -1 | 1
   ) {
+    setMessage("");
+    setError("");
+
+    const published =
+      items.filter(
+        (candidate) =>
+          candidate.status === "published"
+      );
+
+    const drafts =
+      items.filter(
+        (candidate) =>
+          candidate.status !== "published"
+      );
+
+    const index =
+      published.findIndex(
+        (candidate) =>
+          candidate.id === candidateId
+      );
+
+    if (index === -1) {
+      return;
+    }
+
     const targetIndex =
       index + direction;
 
     if (
       targetIndex < 0 ||
-      targetIndex >= items.length
+      targetIndex >=
+        published.length
     ) {
       return;
     }
 
-    setItems((current) => {
-      const next = [...current];
+    const nextPublished =
+      [...published];
 
-      const currentItem =
-        next[index];
+    const current =
+      nextPublished[index];
 
-      next[index] =
-        next[targetIndex];
+    nextPublished[index] =
+      nextPublished[targetIndex];
 
-      next[targetIndex] =
-        currentItem;
+    nextPublished[targetIndex] =
+      current;
 
-      return next;
-    });
-
-    setMessage("");
-    setError("");
+    setItems([
+      ...nextPublished,
+      ...drafts,
+    ]);
   }
 
   async function saveOrder() {
@@ -97,17 +188,27 @@ export default function CandidateOrderManager({
     const supabase =
       createClient();
 
+    const published =
+      items.filter(
+        (candidate) =>
+          candidate.status === "published"
+      );
+
     /*
-     * Gravamos 10, 20, 30...
+     * Gravamos:
      *
-     * Isso deixa espaço para futuras
-     * inserções entre candidatos sem
-     * precisar renumerar manualmente.
+     * 1º = 10
+     * 2º = 20
+     * 3º = 30
+     *
+     * A interface mostra 1, 2, 3...
+     * mas o banco mantém intervalos.
      */
-    const orderedItems =
-      items.map(
+    const ordered =
+      published.map(
         (candidate, index) => ({
           ...candidate,
+
           display_order:
             (index + 1) * 10,
         })
@@ -115,26 +216,28 @@ export default function CandidateOrderManager({
 
     for (
       const candidate
-      of orderedItems
+      of ordered
     ) {
-      const { error: updateError } =
-        await supabase
-          .from("candidates")
-          .update({
-            display_order:
-              candidate.display_order,
+      const {
+        error: updateError,
+      } = await supabase
+        .from("candidates")
+        .update({
+          display_order:
+            candidate.display_order,
 
-            updated_at:
-              new Date().toISOString(),
-          })
-          .eq(
-            "id",
-            candidate.id
-          );
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq(
+          "id",
+          candidate.id
+        );
 
       if (updateError) {
         setError(
-          `Não foi possível salvar a ordem: ${updateError.message}`
+          "Não foi possível salvar a ordem: " +
+            updateError.message
         );
 
         setSaving(false);
@@ -143,7 +246,16 @@ export default function CandidateOrderManager({
       }
     }
 
-    setItems(orderedItems);
+    const drafts =
+      items.filter(
+        (candidate) =>
+          candidate.status !== "published"
+      );
+
+    setItems([
+      ...ordered,
+      ...drafts,
+    ]);
 
     setMessage(
       "Ordem dos cards salva com sucesso."
@@ -154,23 +266,68 @@ export default function CandidateOrderManager({
     router.refresh();
   }
 
+  function getPublishedPosition(
+    candidateId: string
+  ) {
+    const index =
+      publishedItems.findIndex(
+        (candidate) =>
+          candidate.id === candidateId
+      );
+
+    if (index === -1) {
+      return null;
+    }
+
+    return index + 1;
+  }
+
+  function getReviewLabel(
+    reviewStatus?: string | null
+  ) {
+    switch (reviewStatus) {
+      case "awaiting_completion":
+        return "Aguardando preenchimento";
+
+      case "in_review":
+        return "Em revisão";
+
+      case "approved":
+        return "Aprovado";
+
+      case "draft":
+      default:
+        return null;
+    }
+  }
+
   return (
     <section
       className="admin-panel"
       style={{
         marginTop: 24,
-        padding: 22,
       }}
     >
+      {/* CABEÇALHO */}
+
       <div
         style={{
+          padding: 22,
+
           display: "flex",
-          justifyContent:
-            "space-between",
+
           alignItems:
             "flex-start",
+
+          justifyContent:
+            "space-between",
+
           gap: 18,
+
           flexWrap: "wrap",
+
+          borderBottom:
+            "1px solid #e4e7ec",
         }}
       >
         <div>
@@ -178,39 +335,50 @@ export default function CandidateOrderManager({
             style={{
               display:
                 "inline-block",
-              color: "#157347",
+
+              color:
+                "#157347",
+
               fontSize: 12,
+
               fontWeight: 900,
+
               letterSpacing: 1,
+
               marginBottom: 5,
             }}
           >
-            ORDEM DE EXIBIÇÃO
+            GESTÃO DOS APOIADOS
           </span>
 
           <h2
             style={{
               margin:
                 "0 0 6px",
+
               fontSize: 26,
             }}
           >
-            Organizar cards
+            Candidatos cadastrados
           </h2>
 
           <p
             style={{
               margin: 0,
-              color: "#667085",
+
+              color:
+                "#667085",
+
               lineHeight: 1.6,
-              maxWidth: 720,
+
+              maxWidth: 750,
             }}
           >
-            Defina manualmente a
-            ordem em que os candidatos
-            publicados serão exibidos.
-            Use as setas para alterar
-            as posições e depois salve.
+            Visualize os candidatos,
+            altere manualmente a posição
+            dos cards publicados e acesse
+            a edição completa de cada
+            cadastro.
           </p>
         </div>
 
@@ -220,7 +388,7 @@ export default function CandidateOrderManager({
           onClick={saveOrder}
           disabled={
             saving ||
-            items.length === 0
+            publishedItems.length === 0
           }
         >
           {saving
@@ -229,340 +397,551 @@ export default function CandidateOrderManager({
         </button>
       </div>
 
-      {items.length === 0 ? (
-        <div
-          style={{
-            marginTop: 20,
-            padding: 18,
-            borderRadius: 12,
-            background: "#f9fafb",
-            color: "#667085",
-          }}
-        >
-          Nenhum candidato publicado
-          para organizar.
-        </div>
-      ) : (
-        <div
-          style={{
-            display: "grid",
-            gap: 10,
-            marginTop: 22,
-          }}
-        >
-          {items.map(
-            (
-              candidate,
-              index
-            ) => (
-              <div
-                key={
-                  candidate.id
-                }
-                style={{
-                  display:
-                    "grid",
+      {/* TABELA */}
 
-                  gridTemplateColumns:
-                    "52px 58px minmax(180px,1fr) auto",
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>
+                Foto
+              </th>
 
-                  gap: 14,
+              <th>
+                Posição
+              </th>
 
-                  alignItems:
-                    "center",
+              <th>
+                Candidato
+              </th>
 
-                  padding: 12,
+              <th>
+                Estado
+              </th>
 
-                  border:
-                    "1px solid #e4e7ec",
+              <th>
+                Cargo
+              </th>
 
-                  borderRadius: 12,
+              <th>
+                Partido
+              </th>
 
-                  background:
-                    "#fff",
-                }}
-              >
-                {/* POSIÇÃO */}
+              <th>
+                Status
+              </th>
 
-                <div
+              <th>
+                Ação
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {items.length === 0 && (
+              <tr>
+                <td
+                  colSpan={8}
                   style={{
-                    width: 40,
-                    height: 40,
-
-                    borderRadius:
-                      "50%",
-
-                    display:
-                      "flex",
-
-                    alignItems:
+                    textAlign:
                       "center",
 
-                    justifyContent:
-                      "center",
-
-                    background:
-                      "#e9f7ef",
+                    padding: 30,
 
                     color:
-                      "#157347",
-
-                    fontWeight:
-                      900,
-
-                    fontSize:
-                      16,
+                      "#667085",
                   }}
                 >
-                  {index + 1}
-                </div>
+                  Nenhum candidato
+                  cadastrado.
+                </td>
+              </tr>
+            )}
 
-                {/* FOTO */}
+            {items.map(
+              (candidate) => {
+                const published =
+                  candidate.status ===
+                  "published";
 
-                <div
-                  style={{
-                    width: 50,
+                const position =
+                  getPublishedPosition(
+                    candidate.id
+                  );
 
-                    aspectRatio:
-                      "3 / 4",
+                const reviewLabel =
+                  getReviewLabel(
+                    candidate.review_status
+                  );
 
-                    borderRadius:
-                      8,
+                const isFirst =
+                  published &&
+                  position === 1;
 
-                    overflow:
-                      "hidden",
+                const isLast =
+                  published &&
+                  position ===
+                    publishedItems.length;
 
-                    background:
-                      "#f2f4f7",
+                const objectPositionX =
+                  Number(
+                    candidate.photo_position_x ??
+                      50
+                  );
 
-                    border:
-                      "1px solid #e4e7ec",
-                  }}
-                >
-                  {candidate.photo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={
-                        candidate.photo_url
-                      }
-                      alt=""
-                      style={{
-                        width:
-                          "100%",
+                const objectPositionY =
+                  Number(
+                    candidate.photo_position_y ??
+                      20
+                  );
 
-                        height:
-                          "100%",
+                const zoom =
+                  Number(
+                    candidate.photo_zoom ??
+                      1
+                  );
 
-                        display:
-                          "block",
-
-                        objectFit:
-                          "cover",
-
-                        objectPosition:
-                          "center top",
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width:
-                          "100%",
-
-                        height:
-                          "100%",
-
-                        display:
-                          "flex",
-
-                        alignItems:
-                          "center",
-
-                        justifyContent:
-                          "center",
-
-                        color:
-                          "#157347",
-
-                        fontWeight:
-                          900,
-                      }}
-                    >
-                      {(
-                        candidate.ballot_name ||
-                        candidate.name
-                      )
-                        .charAt(0)
-                        .toUpperCase()}
-                    </div>
-                  )}
-                </div>
-
-                {/* DADOS */}
-
-                <div
-                  style={{
-                    minWidth: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight:
-                        900,
-                    }}
-                  >
-                    {candidate.ballot_name ||
-                      candidate.name}
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 3,
-
-                      color:
-                        "#667085",
-
-                      fontSize:
-                        13,
-                    }}
-                  >
-                    {[
-                      candidate.cargo,
-                      candidate.party,
-                      candidate.state_uf,
-                    ]
-                      .filter(
-                        Boolean
-                      )
-                      .join(" • ")}
-                  </div>
-                </div>
-
-                {/* CONTROLES */}
-
-                <div
-                  style={{
-                    display:
-                      "flex",
-
-                    gap: 7,
-                  }}
-                >
-                  <button
-                    type="button"
-                    title="Subir"
-                    aria-label={`Subir ${
-                      candidate.ballot_name ||
-                      candidate.name
-                    }`}
-                    disabled={
-                      index === 0
+                return (
+                  <tr
+                    key={
+                      candidate.id
                     }
-                    onClick={() =>
-                      move(
-                        index,
-                        -1
-                      )
-                    }
-                    style={{
-                      width: 42,
-                      height: 42,
-
-                      borderRadius:
-                        8,
-
-                      border:
-                        "1px solid #d0d5dd",
-
-                      background:
-                        "#fff",
-
-                      cursor:
-                        index === 0
-                          ? "not-allowed"
-                          : "pointer",
-
-                      fontWeight:
-                        900,
-
-                      fontSize:
-                        20,
-
-                      opacity:
-                        index === 0
-                          ? 0.35
-                          : 1,
-                    }}
                   >
-                    ↑
-                  </button>
+                    {/* FOTO */}
 
-                  <button
-                    type="button"
-                    title="Descer"
-                    aria-label={`Descer ${
-                      candidate.ballot_name ||
-                      candidate.name
-                    }`}
-                    disabled={
-                      index ===
-                      items.length - 1
-                    }
-                    onClick={() =>
-                      move(
-                        index,
-                        1
-                      )
-                    }
-                    style={{
-                      width: 42,
-                      height: 42,
+                    <td>
+                      <div
+                        style={{
+                          width: 54,
+                          height: 68,
 
-                      borderRadius:
-                        8,
+                          borderRadius:
+                            9,
 
-                      border:
-                        "1px solid #d0d5dd",
+                          overflow:
+                            "hidden",
 
-                      background:
-                        "#fff",
+                          background:
+                            "#f2f4f7",
 
-                      cursor:
-                        index ===
-                        items.length - 1
-                          ? "not-allowed"
-                          : "pointer",
+                          border:
+                            "1px solid #e4e7ec",
 
-                      fontWeight:
-                        900,
+                          position:
+                            "relative",
+                        }}
+                      >
+                        {candidate.photo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={
+                              candidate.photo_url
+                            }
+                            alt=""
+                            style={{
+                              width:
+                                "100%",
 
-                      fontSize:
-                        20,
+                              height:
+                                "100%",
 
-                      opacity:
-                        index ===
-                        items.length - 1
-                          ? 0.35
-                          : 1,
-                    }}
-                  >
-                    ↓
-                  </button>
-                </div>
-              </div>
-            )
-          )}
-        </div>
-      )}
+                              objectFit:
+                                "cover",
+
+                              objectPosition: `${objectPositionX}% ${objectPositionY}%`,
+
+                              transform: `scale(${zoom})`,
+
+                              transformOrigin: `${objectPositionX}% ${objectPositionY}%`,
+
+                              display:
+                                "block",
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width:
+                                "100%",
+
+                              height:
+                                "100%",
+
+                              display:
+                                "flex",
+
+                              alignItems:
+                                "center",
+
+                              justifyContent:
+                                "center",
+
+                              color:
+                                "#157347",
+
+                              fontWeight:
+                                900,
+
+                              fontSize:
+                                20,
+                            }}
+                          >
+                            {(
+                              candidate.ballot_name ||
+                              candidate.name
+                            )
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* POSIÇÃO */}
+
+                    <td>
+                      {published ? (
+                        <div
+                          style={{
+                            display:
+                              "flex",
+
+                            alignItems:
+                              "center",
+
+                            gap: 6,
+
+                            whiteSpace:
+                              "nowrap",
+                          }}
+                        >
+                          <button
+                            type="button"
+                            title="Subir candidato"
+                            aria-label={`Subir ${
+                              candidate.ballot_name ||
+                              candidate.name
+                            }`}
+                            disabled={
+                              isFirst
+                            }
+                            onClick={() =>
+                              movePublished(
+                                candidate.id,
+                                -1
+                              )
+                            }
+                            style={{
+                              width: 36,
+                              height: 36,
+
+                              border:
+                                "1px solid #d0d5dd",
+
+                              borderRadius:
+                                8,
+
+                              background:
+                                "#fff",
+
+                              cursor:
+                                isFirst
+                                  ? "not-allowed"
+                                  : "pointer",
+
+                              opacity:
+                                isFirst
+                                  ? 0.35
+                                  : 1,
+
+                              fontSize:
+                                18,
+
+                              fontWeight:
+                                900,
+                            }}
+                          >
+                            ↑
+                          </button>
+
+                          <div
+                            style={{
+                              minWidth:
+                                34,
+
+                              height:
+                                34,
+
+                              padding:
+                                "0 8px",
+
+                              borderRadius:
+                                17,
+
+                              display:
+                                "flex",
+
+                              alignItems:
+                                "center",
+
+                              justifyContent:
+                                "center",
+
+                              background:
+                                "#e9f7ef",
+
+                              color:
+                                "#157347",
+
+                              fontWeight:
+                                900,
+                            }}
+                          >
+                            {position}
+                          </div>
+
+                          <button
+                            type="button"
+                            title="Descer candidato"
+                            aria-label={`Descer ${
+                              candidate.ballot_name ||
+                              candidate.name
+                            }`}
+                            disabled={
+                              isLast
+                            }
+                            onClick={() =>
+                              movePublished(
+                                candidate.id,
+                                1
+                              )
+                            }
+                            style={{
+                              width: 36,
+                              height: 36,
+
+                              border:
+                                "1px solid #d0d5dd",
+
+                              borderRadius:
+                                8,
+
+                              background:
+                                "#fff",
+
+                              cursor:
+                                isLast
+                                  ? "not-allowed"
+                                  : "pointer",
+
+                              opacity:
+                                isLast
+                                  ? 0.35
+                                  : 1,
+
+                              fontSize:
+                                18,
+
+                              fontWeight:
+                                900,
+                            }}
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      ) : (
+                        <span
+                          style={{
+                            color:
+                              "#98a2b3",
+
+                            fontSize:
+                              13,
+                          }}
+                        >
+                          —
+                        </span>
+                      )}
+                    </td>
+
+                    {/* CANDIDATO */}
+
+                    <td>
+                      <div
+                        style={{
+                          fontWeight:
+                            900,
+                        }}
+                      >
+                        {candidate.ballot_name ||
+                          candidate.name}
+                      </div>
+
+                      {candidate.ballot_name &&
+                        candidate.ballot_name !==
+                          candidate.name && (
+                          <div
+                            style={{
+                              marginTop:
+                                3,
+
+                              color:
+                                "#667085",
+
+                              fontSize:
+                                12,
+                            }}
+                          >
+                            {
+                              candidate.name
+                            }
+                          </div>
+                        )}
+
+                      {candidate.number && (
+                        <div
+                          style={{
+                            marginTop:
+                              4,
+
+                            color:
+                              "#667085",
+
+                            fontSize:
+                              12,
+                          }}
+                        >
+                          Nº{" "}
+                          {
+                            candidate.number
+                          }
+                        </div>
+                      )}
+                    </td>
+
+                    {/* ESTADO */}
+
+                    <td>
+                      <div>
+                        {candidate.state_uf ||
+                          "—"}
+                      </div>
+
+                      {candidate.city_name && (
+                        <div
+                          style={{
+                            color:
+                              "#667085",
+
+                            fontSize:
+                              12,
+
+                            marginTop:
+                              3,
+                          }}
+                        >
+                          {
+                            candidate.city_name
+                          }
+                        </div>
+                      )}
+                    </td>
+
+                    {/* CARGO */}
+
+                    <td>
+                      {candidate.cargo ||
+                        "—"}
+                    </td>
+
+                    {/* PARTIDO */}
+
+                    <td>
+                      {candidate.party ||
+                        "—"}
+                    </td>
+
+                    {/* STATUS */}
+
+                    <td>
+                      <div
+                        style={{
+                          display:
+                            "flex",
+
+                          flexDirection:
+                            "column",
+
+                          alignItems:
+                            "flex-start",
+
+                          gap: 5,
+                        }}
+                      >
+                        <span
+                          className={`status-pill ${candidate.status}`}
+                        >
+                          {published
+                            ? "Publicado"
+                            : "Rascunho"}
+                        </span>
+
+                        {reviewLabel && (
+                          <span
+                            style={{
+                              fontSize:
+                                11,
+
+                              color:
+                                "#667085",
+
+                              whiteSpace:
+                                "nowrap",
+                            }}
+                          >
+                            {
+                              reviewLabel
+                            }
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* AÇÃO */}
+
+                    <td>
+                      <Link
+                        href={`/admin/candidatos/${candidate.id}`}
+                        className="admin-edit"
+                      >
+                        Editar
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              }
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MENSAGENS */}
 
       {message && (
         <div
           style={{
-            marginTop: 16,
+            margin: 18,
+
             padding: 12,
+
             borderRadius: 9,
-            background: "#ecfdf3",
-            color: "#027a48",
+
+            background:
+              "#ecfdf3",
+
+            color:
+              "#027a48",
+
             fontWeight: 700,
           }}
         >
@@ -573,11 +952,17 @@ export default function CandidateOrderManager({
       {error && (
         <div
           style={{
-            marginTop: 16,
+            margin: 18,
+
             padding: 12,
+
             borderRadius: 9,
-            background: "#fef3f2",
-            color: "#b42318",
+
+            background:
+              "#fef3f2",
+
+            color:
+              "#b42318",
           }}
         >
           {error}
