@@ -4,44 +4,17 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/browser";
 
-type LoginStep =
-  | "idle"
-  | "creating-client"
-  | "sending"
-  | "authenticated"
-  | "redirecting"
-  | "error";
-
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [step, setStep] = useState<LoginStep>("idle");
 
-  function stepText() {
-    switch (step) {
-      case "creating-client":
-        return "1/4 — Criando cliente Supabase...";
-      case "sending":
-        return "2/4 — Enviando autenticação ao Supabase...";
-      case "authenticated":
-        return "3/4 — Autenticação concluída. Sessão recebida.";
-      case "redirecting":
-        return "4/4 — Redirecionando para a administração...";
-      case "error":
-        return "A tentativa foi interrompida por um erro.";
-      default:
-        return "Aguardando login.";
-    }
-  }
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (loading) return;
 
     setLoading(true);
     setError("");
-    setStep("creating-client");
 
     const form = new FormData(event.currentTarget);
 
@@ -52,133 +25,75 @@ export default function AdminLoginPage() {
     const password = String(form.get("password") || "");
 
     try {
-      /*
-       * ETAPA 1
-       * Criação do cliente Supabase.
-       */
       const supabase = createClient();
 
-      setStep("sending");
-
-      /*
-       * ETAPA 2
-       * Executa o login, mas não permite que
-       * a tela fique indefinidamente aguardando.
-       */
-      const loginPromise = supabase.auth.signInWithPassword({
+      const {
+        data,
+        error: loginError,
+      } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        window.setTimeout(() => {
-          reject(
-            new Error(
-              "TIMEOUT_SUPABASE_AUTH"
-            )
-          );
-        }, 15000);
-      });
+      if (loginError) {
+        setError(loginError.message);
+        return;
+      }
 
-      const result = await Promise.race([
-        loginPromise,
-        timeoutPromise,
-      ]);
+      if (!data.user || !data.session) {
+        setError(
+          "Não foi possível estabelecer uma sessão válida. Tente novamente."
+        );
+        return;
+      }
 
       /*
-       * ETAPA 3
-       * O Supabase respondeu.
-       */
-      if (result.error) {
-        setStep("error");
-
-        setError(
-          `O Supabase respondeu com erro: ${result.error.message}`
-        );
-
-        return;
-      }
-
-      if (!result.data.user) {
-        setStep("error");
-
-        setError(
-          "O Supabase respondeu, mas não retornou o usuário autenticado."
-        );
-
-        return;
-      }
-
-      if (!result.data.session) {
-        setStep("error");
-
-        setError(
-          "O Supabase autenticou o usuário, mas não retornou uma sessão."
-        );
-
-        return;
-      }
-
-      setStep("authenticated");
-
-      /*
-       * Confirma adicionalmente que o cliente
-       * consegue enxergar a sessão recém-criada.
+       * Confirma que o usuário autenticado possui
+       * acesso à Central Administrativa.
        */
       const {
-        data: sessionData,
-        error: sessionError,
-      } = await supabase.auth.getSession();
+        data: adminProfile,
+        error: profileError,
+      } = await supabase
+        .from("admin_profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle();
 
-      if (sessionError) {
-        setStep("error");
+      if (profileError) {
+        await supabase.auth.signOut();
 
         setError(
-          `Login realizado, mas houve erro ao recuperar a sessão: ${sessionError.message}`
+          "Não foi possível verificar sua permissão administrativa."
         );
-
         return;
       }
 
-      if (!sessionData.session) {
-        setStep("error");
+      if (
+        adminProfile?.role !== "admin" &&
+        adminProfile?.role !== "editor"
+      ) {
+        await supabase.auth.signOut();
 
         setError(
-          "Login realizado, mas a sessão não permaneceu disponível no navegador."
+          "Este usuário não possui acesso à Central Administrativa."
         );
-
         return;
       }
 
       /*
-       * ETAPA 4
-       * Só chegamos aqui se autenticação e
-       * sessão estiverem funcionando.
+       * Recarregamento completo para que o servidor
+       * receba a sessão/cookies recém-criados.
        */
-      setStep("redirecting");
-
       window.location.assign("/admin");
     } catch (err) {
-      console.error("Admin login diagnostic:", err);
+      console.error("Erro no login administrativo:", err);
 
-      setStep("error");
-
-      if (
-        err instanceof Error &&
-        err.message === "TIMEOUT_SUPABASE_AUTH"
-      ) {
-        setError(
-          "DIAGNÓSTICO: o navegador enviou a solicitação de login, mas o Supabase não respondeu em 15 segundos. O problema está na comunicação com o serviço de autenticação, antes da verificação do perfil administrativo."
-        );
-      } else if (err instanceof Error) {
-        setError(
-          `Erro durante o login: ${err.message}`
-        );
-      } else {
-        setError(
-          "Ocorreu um erro desconhecido durante o login."
-        );
-      }
+      setError(
+        err instanceof Error
+          ? `Não foi possível realizar o acesso: ${err.message}`
+          : "Não foi possível realizar o acesso."
+      );
     } finally {
       setLoading(false);
     }
@@ -191,18 +106,19 @@ export default function AdminLoginPage() {
         display: "grid",
         placeItems: "center",
         padding: 20,
-        background: "#f8faf9",
+        background:
+          "linear-gradient(135deg, #f7faf8 0%, #eef5f1 100%)",
       }}
     >
       <form
-        onSubmit={submit}
+        onSubmit={handleSubmit}
         style={{
-          width: "min(460px, 100%)",
-          padding: 30,
+          width: "min(440px, 100%)",
+          padding: 32,
           background: "#ffffff",
           border: "1px solid #e4e7ec",
-          borderRadius: 16,
-          boxShadow: "0 10px 30px rgba(16,24,40,.06)",
+          borderRadius: 18,
+          boxShadow: "0 16px 40px rgba(16, 24, 40, 0.08)",
         }}
       >
         <Link
@@ -213,16 +129,16 @@ export default function AdminLoginPage() {
             textDecoration: "none",
           }}
         >
-          ← Site MFB
+          ← Voltar ao site MFB
         </Link>
 
         <div
           style={{
-            marginTop: 22,
+            marginTop: 28,
             color: "#157347",
             fontSize: 13,
             fontWeight: 900,
-            letterSpacing: 1,
+            letterSpacing: 1.2,
           }}
         >
           CENTRAL ADMINISTRATIVA
@@ -230,7 +146,7 @@ export default function AdminLoginPage() {
 
         <h1
           style={{
-            margin: "8px 0",
+            margin: "8px 0 6px",
             fontSize: 32,
             color: "#101828",
           }}
@@ -240,19 +156,21 @@ export default function AdminLoginPage() {
 
         <p
           style={{
-            margin: "0 0 24px",
+            margin: "0 0 28px",
             color: "#667085",
+            lineHeight: 1.5,
           }}
         >
-          Diagnóstico controlado da autenticação administrativa.
+          Entre com sua conta autorizada para acessar a gestão da plataforma.
         </p>
 
         <label
           htmlFor="email"
           style={{
             display: "block",
-            marginBottom: 6,
+            marginBottom: 7,
             fontWeight: 700,
+            color: "#344054",
           }}
         >
           E-mail
@@ -265,14 +183,16 @@ export default function AdminLoginPage() {
           required
           autoComplete="email"
           disabled={loading}
+          placeholder="seuemail@exemplo.com"
           style={{
             width: "100%",
             boxSizing: "border-box",
-            padding: "12px 14px",
+            padding: "13px 14px",
+            marginBottom: 18,
             border: "1px solid #d0d5dd",
             borderRadius: 9,
             fontSize: 15,
-            marginBottom: 16,
+            outline: "none",
           }}
         />
 
@@ -280,8 +200,9 @@ export default function AdminLoginPage() {
           htmlFor="password"
           style={{
             display: "block",
-            marginBottom: 6,
+            marginBottom: 7,
             fontWeight: 700,
+            color: "#344054",
           }}
         >
           Senha
@@ -294,37 +215,23 @@ export default function AdminLoginPage() {
           required
           autoComplete="current-password"
           disabled={loading}
+          placeholder="Sua senha"
           style={{
             width: "100%",
             boxSizing: "border-box",
-            padding: "12px 14px",
+            padding: "13px 14px",
             border: "1px solid #d0d5dd",
             borderRadius: 9,
             fontSize: 15,
+            outline: "none",
           }}
         />
 
-        <div
-          style={{
-            marginTop: 18,
-            padding: 14,
-            borderRadius: 9,
-            background: "#f9fafb",
-            border: "1px solid #eaecf0",
-            color: "#344054",
-            fontSize: 14,
-            lineHeight: 1.5,
-          }}
-        >
-          <strong>Estado do login:</strong>
-          <br />
-          {stepText()}
-        </div>
-
         {error && (
           <div
+            role="alert"
             style={{
-              marginTop: 16,
+              marginTop: 18,
               padding: 13,
               borderRadius: 9,
               background: "#fef3f2",
@@ -334,8 +241,6 @@ export default function AdminLoginPage() {
               lineHeight: 1.5,
             }}
           >
-            <strong>Resultado do diagnóstico:</strong>
-            <br />
             {error}
           </div>
         )}
@@ -345,8 +250,8 @@ export default function AdminLoginPage() {
           disabled={loading}
           style={{
             width: "100%",
-            marginTop: 20,
-            padding: "13px 18px",
+            marginTop: 22,
+            padding: "14px 18px",
             border: 0,
             borderRadius: 9,
             background: "#157347",
@@ -357,13 +262,13 @@ export default function AdminLoginPage() {
             opacity: loading ? 0.7 : 1,
           }}
         >
-          {loading ? "Testando acesso..." : "Entrar"}
+          {loading ? "Entrando..." : "Entrar"}
         </button>
 
         <div
           style={{
-            marginTop: 20,
-            paddingTop: 18,
+            marginTop: 24,
+            paddingTop: 20,
             borderTop: "1px solid #eaecf0",
             textAlign: "center",
             color: "#98a2b3",
@@ -371,6 +276,8 @@ export default function AdminLoginPage() {
           }}
         >
           Movimento Família Brasileira
+          <br />
+          Acesso restrito à equipe autorizada
         </div>
       </form>
     </main>
