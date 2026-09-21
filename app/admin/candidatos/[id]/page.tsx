@@ -138,10 +138,10 @@ export default async function CandidateEditPage({
     notFound();
   }
 
-  const publicHref =
-    candidate.slug
-      ? `/candidatos/${candidate.slug}`
-      : null;
+ const publicHref =
+  candidate.slug
+    ? `/candidato/${candidate.slug}`
+    : null;
 
   return (
     <main className="min-h-screen bg-slate-50">
