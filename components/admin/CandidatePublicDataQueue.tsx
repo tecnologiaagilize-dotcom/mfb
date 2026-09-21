@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  ArrowRightCircle,
   CheckCircle2,
   Clock3,
   Database,
@@ -12,7 +13,12 @@ import {
   RotateCcw,
   XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { createClient } from "@/lib/supabase/client";
 
@@ -24,20 +30,22 @@ type QueueStatus =
   | "ignored"
   | "imported";
 
+type RecordType =
+  | "position"
+  | "proposition"
+  | "vote"
+  | "committee"
+  | "delivery"
+  | "profile"
+  | "other";
+
 type QueueItem = {
   id: string;
   provider_id: string;
   candidate_id: string;
   external_identity_id: string | null;
 
-  record_type:
-    | "position"
-    | "proposition"
-    | "vote"
-    | "committee"
-    | "delivery"
-    | "profile"
-    | "other";
+  record_type: RecordType;
 
   external_id: string | null;
   external_url: string | null;
@@ -86,7 +94,7 @@ const STATUS_LABELS: Record<QueueStatus, string> = {
   imported: "Incorporado",
 };
 
-const TYPE_LABELS: Record<QueueItem["record_type"], string> = {
+const TYPE_LABELS: Record<RecordType, string> = {
   position: "Cargo / função",
   proposition: "Proposição",
   vote: "Votação",
@@ -143,7 +151,9 @@ function statusColors(status: QueueStatus) {
 }
 
 function formatDate(value: string | null) {
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
 
   try {
     return new Intl.DateTimeFormat("pt-BR", {
@@ -158,27 +168,50 @@ function formatDate(value: string | null) {
 export default function CandidatePublicDataQueue({
   candidateId,
 }: Props) {
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = useMemo(
+    () => createClient(),
+    []
+  );
 
-  const [items, setItems] = useState<QueueItemWithProvider[]>([]);
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [items, setItems] = useState<
+    QueueItemWithProvider[]
+  >([]);
 
-  const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [providers, setProviders] = useState<
+    Provider[]
+  >([]);
 
-  const [filter, setFilter] = useState<QueueStatus | "all">("all");
+  const [loading, setLoading] =
+    useState(true);
 
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] =
+    useState<string | null>(null);
+
+  const [importingId, setImportingId] =
+    useState<string | null>(null);
+
+  const [filter, setFilter] =
+    useState<QueueStatus | "all">("all");
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const [success, setSuccess] =
+    useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const [queueResult, providersResult] = await Promise.all([
+      const [
+        queueResult,
+        providersResult,
+      ] = await Promise.all([
         supabase
-          .from("mfb_public_data_import_queue")
+          .from(
+            "mfb_public_data_import_queue"
+          )
           .select(
             `
               id,
@@ -203,13 +236,18 @@ export default function CandidatePublicDataQueue({
               updated_at
             `
           )
-          .eq("candidate_id", candidateId)
+          .eq(
+            "candidate_id",
+            candidateId
+          )
           .order("created_at", {
             ascending: false,
           }),
 
         supabase
-          .from("mfb_public_data_providers")
+          .from(
+            "mfb_public_data_providers"
+          )
           .select(
             `
               id,
@@ -231,17 +269,26 @@ export default function CandidatePublicDataQueue({
         throw providersResult.error;
       }
 
-      const providerList = (providersResult.data || []) as Provider[];
-      const queueList = (queueResult.data || []) as QueueItem[];
+      const providerList =
+        (providersResult.data ||
+          []) as Provider[];
+
+      const queueList =
+        (queueResult.data ||
+          []) as QueueItem[];
 
       setProviders(providerList);
 
       setItems(
         queueList.map((item) => ({
           ...item,
-          provider: providerList.find(
-            (provider) => provider.id === item.provider_id
-          ),
+
+          provider:
+            providerList.find(
+              (provider) =>
+                provider.id ===
+                item.provider_id
+            ),
         }))
       );
     } catch (err: any) {
@@ -252,7 +299,10 @@ export default function CandidatePublicDataQueue({
     } finally {
       setLoading(false);
     }
-  }, [candidateId, supabase]);
+  }, [
+    candidateId,
+    supabase,
+  ]);
 
   useEffect(() => {
     void loadData();
@@ -263,27 +313,50 @@ export default function CandidatePublicDataQueue({
       return items;
     }
 
-    return items.filter((item) => item.review_status === filter);
+    return items.filter(
+      (item) =>
+        item.review_status === filter
+    );
   }, [filter, items]);
 
   const counts = useMemo(() => {
     return {
       all: items.length,
-      pending: items.filter((item) => item.review_status === "pending")
-        .length,
+
+      pending: items.filter(
+        (item) =>
+          item.review_status ===
+          "pending"
+      ).length,
+
       in_review: items.filter(
-        (item) => item.review_status === "in_review"
+        (item) =>
+          item.review_status ===
+          "in_review"
       ).length,
+
       approved: items.filter(
-        (item) => item.review_status === "approved"
+        (item) =>
+          item.review_status ===
+          "approved"
       ).length,
+
       rejected: items.filter(
-        (item) => item.review_status === "rejected"
+        (item) =>
+          item.review_status ===
+          "rejected"
       ).length,
-      ignored: items.filter((item) => item.review_status === "ignored")
-        .length,
+
+      ignored: items.filter(
+        (item) =>
+          item.review_status ===
+          "ignored"
+      ).length,
+
       imported: items.filter(
-        (item) => item.review_status === "imported"
+        (item) =>
+          item.review_status ===
+          "imported"
       ).length,
     };
   }, [items]);
@@ -292,10 +365,14 @@ export default function CandidatePublicDataQueue({
     item: QueueItemWithProvider,
     newStatus: QueueStatus
   ) {
-    if (item.review_status === "imported") {
+    if (
+      item.review_status ===
+      "imported"
+    ) {
       setError(
         "Este registro já foi incorporado. O histórico da importação deve ser preservado."
       );
+
       return;
     }
 
@@ -306,40 +383,75 @@ export default function CandidatePublicDataQueue({
     try {
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } =
+        await supabase.auth.getUser();
 
       if (!user) {
-        throw new Error("Sessão administrativa não encontrada.");
+        throw new Error(
+          "Sessão administrativa não encontrada."
+        );
       }
 
-      const now = new Date().toISOString();
+      const now =
+        new Date().toISOString();
 
-      const { error: updateError } = await supabase
-        .from("mfb_public_data_import_queue")
+      const {
+        error: updateError,
+      } = await supabase
+        .from(
+          "mfb_public_data_import_queue"
+        )
         .update({
-          review_status: newStatus,
-          reviewed_by: user.id,
-          reviewed_at: now,
+          review_status:
+            newStatus,
+
+          reviewed_by:
+            user.id,
+
+          reviewed_at:
+            now,
         })
         .eq("id", item.id)
-        .eq("candidate_id", candidateId);
+        .eq(
+          "candidate_id",
+          candidateId
+        );
 
       if (updateError) {
         throw updateError;
       }
 
-      const { error: eventError } = await supabase
-        .from("mfb_public_data_import_events")
+      const {
+        error: eventError,
+      } = await supabase
+        .from(
+          "mfb_public_data_import_events"
+        )
         .insert({
-          queue_item_id: item.id,
-          event_type: "review_status_changed",
-          previous_status: item.review_status,
-          new_status: newStatus,
-          performed_by: user.id,
-          notes: null,
+          queue_item_id:
+            item.id,
+
+          event_type:
+            "review_status_changed",
+
+          previous_status:
+            item.review_status,
+
+          new_status:
+            newStatus,
+
+          performed_by:
+            user.id,
+
+          notes:
+            null,
+
           metadata: {
-            record_type: item.record_type,
-            provider_id: item.provider_id,
+            record_type:
+              item.record_type,
+
+            provider_id:
+              item.provider_id,
           },
         });
 
@@ -362,6 +474,114 @@ export default function CandidatePublicDataQueue({
     }
   }
 
+  async function incorporateItem(
+    item: QueueItemWithProvider
+  ) {
+    if (
+      item.review_status !==
+      "approved"
+    ) {
+      setError(
+        "Somente registros aprovados podem ser incorporados."
+      );
+
+      return;
+    }
+
+    if (
+      item.record_type ===
+        "profile" ||
+      item.record_type ===
+        "other"
+    ) {
+      setError(
+        "Este tipo de registro exige tratamento administrativo específico e não possui incorporação automática."
+      );
+
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        "Incorporar este registro à Atuação Pública?\n\nO registro será criado como pendente de verificação. Esta operação não o publicará automaticamente."
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setImportingId(item.id);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response =
+        await fetch(
+          `/api/admin/public-data/import/${item.id}`,
+          {
+            method: "POST",
+
+            headers: {
+              Accept:
+                "application/json",
+            },
+          }
+        );
+
+      const contentType =
+        response.headers.get(
+          "content-type"
+        );
+
+      let result: any = null;
+
+      if (
+        contentType?.includes(
+          "application/json"
+        )
+      ) {
+        result =
+          await response.json();
+      } else {
+        const text =
+          await response.text();
+
+        result = {
+          error:
+            text ||
+            "Resposta inválida do servidor.",
+        };
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          result?.error ||
+            "Não foi possível incorporar o registro."
+        );
+      }
+
+      if (result?.warning) {
+        setSuccess(
+          `${result.message || "Registro incorporado."} ${result.warning}`
+        );
+      } else {
+        setSuccess(
+          result?.message ||
+            "Registro incorporado à Atuação Pública. Ele permanece pendente de verificação."
+        );
+      }
+
+      await loadData();
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          "Não foi possível incorporar o registro à Atuação Pública."
+      );
+    } finally {
+      setImportingId(null);
+    }
+  }
+
   if (loading) {
     return (
       <div
@@ -374,6 +594,7 @@ export default function CandidatePublicDataQueue({
         }}
       >
         <Loader2 size={20} />
+
         Carregando fila de dados públicos...
       </div>
     );
@@ -390,7 +611,8 @@ export default function CandidatePublicDataQueue({
         style={{
           padding: 18,
           borderRadius: 12,
-          border: "1px solid #d1e9ff",
+          border:
+            "1px solid #d1e9ff",
           background: "#f5fbff",
         }}
       >
@@ -398,7 +620,8 @@ export default function CandidatePublicDataQueue({
           style={{
             display: "flex",
             gap: 12,
-            alignItems: "flex-start",
+            alignItems:
+              "flex-start",
           }}
         >
           <Database
@@ -421,15 +644,22 @@ export default function CandidatePublicDataQueue({
 
             <p
               style={{
-                margin: "5px 0 0",
+                margin:
+                  "5px 0 0",
                 color: "#475467",
                 fontSize: 14,
                 lineHeight: 1.65,
               }}
             >
-              Registros recebidos de integrações externas serão
-              apresentados aqui antes de qualquer incorporação à
-              Atuação Pública. Aprovar nesta fila não significa
+              Registros recebidos
+              de integrações
+              externas serão
+              apresentados aqui
+              antes de qualquer
+              incorporação à
+              Atuação Pública.
+              Aprovar nesta fila
+              não significa
               publicar o registro.
             </p>
           </div>
@@ -440,12 +670,14 @@ export default function CandidatePublicDataQueue({
         <div
           style={{
             display: "flex",
-            alignItems: "flex-start",
+            alignItems:
+              "flex-start",
             gap: 9,
             padding: 13,
             borderRadius: 10,
             background: "#fef3f2",
-            border: "1px solid #fecdca",
+            border:
+              "1px solid #fecdca",
             color: "#b42318",
           }}
         >
@@ -470,19 +702,26 @@ export default function CandidatePublicDataQueue({
             padding: 13,
             borderRadius: 10,
             background: "#ecfdf3",
-            border: "1px solid #abefc6",
+            border:
+              "1px solid #abefc6",
             color: "#027a48",
           }}
         >
-          <CheckCircle2 size={18} />
-          <span>{success}</span>
+          <CheckCircle2
+            size={18}
+          />
+
+          <span>
+            {success}
+          </span>
         </div>
       )}
 
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent:
+            "space-between",
           alignItems: "center",
           gap: 12,
           flexWrap: "wrap",
@@ -501,22 +740,31 @@ export default function CandidatePublicDataQueue({
 
           <p
             style={{
-              margin: "4px 0 0",
+              margin:
+                "4px 0 0",
               color: "#667085",
               fontSize: 13,
             }}
           >
             {items.length} registro
-            {items.length === 1 ? "" : "s"} na fila.
+            {items.length === 1
+              ? ""
+              : "s"}{" "}
+            na fila.
           </p>
         </div>
 
         <button
           type="button"
           className="btn btn-secondary"
-          onClick={() => void loadData()}
+          onClick={() =>
+            void loadData()
+          }
         >
-          <RefreshCw size={16} />
+          <RefreshCw
+            size={16}
+          />
+
           Atualizar
         </button>
       </div>
@@ -531,43 +779,79 @@ export default function CandidatePublicDataQueue({
         {(
           [
             ["all", "Todos"],
-            ["pending", "Pendentes"],
-            ["in_review", "Em revisão"],
-            ["approved", "Aprovados"],
-            ["rejected", "Rejeitados"],
-            ["ignored", "Ignorados"],
-            ["imported", "Incorporados"],
+            [
+              "pending",
+              "Pendentes",
+            ],
+            [
+              "in_review",
+              "Em revisão",
+            ],
+            [
+              "approved",
+              "Aprovados",
+            ],
+            [
+              "rejected",
+              "Rejeitados",
+            ],
+            [
+              "ignored",
+              "Ignorados",
+            ],
+            [
+              "imported",
+              "Incorporados",
+            ],
           ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setFilter(value)}
-            style={{
-              padding: "7px 11px",
-              borderRadius: 999,
-              border:
-                filter === value
-                  ? "1px solid #157347"
-                  : "1px solid #d0d5dd",
-              background: filter === value ? "#ecfdf3" : "#fff",
-              color: filter === value ? "#027a48" : "#475467",
-              fontSize: 12,
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            {label} ({counts[value]})
-          </button>
-        ))}
+        ).map(
+          ([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() =>
+                setFilter(value)
+              }
+              style={{
+                padding:
+                  "7px 11px",
+                borderRadius: 999,
+
+                border:
+                  filter === value
+                    ? "1px solid #157347"
+                    : "1px solid #d0d5dd",
+
+                background:
+                  filter === value
+                    ? "#ecfdf3"
+                    : "#fff",
+
+                color:
+                  filter === value
+                    ? "#027a48"
+                    : "#475467",
+
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              {label} (
+              {counts[value]})
+            </button>
+          )
+        )}
       </div>
 
-      {visibleItems.length === 0 ? (
+      {visibleItems.length ===
+      0 ? (
         <div
           style={{
             padding: 30,
             textAlign: "center",
-            border: "1px dashed #d0d5dd",
+            border:
+              "1px dashed #d0d5dd",
             borderRadius: 12,
             background: "#fcfcfd",
             color: "#667085",
@@ -586,7 +870,8 @@ export default function CandidatePublicDataQueue({
               color: "#344054",
             }}
           >
-            Nenhum registro nesta fila
+            Nenhum registro
+            nesta fila
           </div>
 
           <div
@@ -595,8 +880,12 @@ export default function CandidatePublicDataQueue({
               fontSize: 14,
             }}
           >
-            Quando conectarmos as fontes oficiais, os registros
-            encontrados aparecerão aqui para conferência.
+            Quando conectarmos
+            as fontes oficiais,
+            os registros
+            encontrados
+            aparecerão aqui para
+            conferência.
           </div>
         </div>
       ) : (
@@ -606,270 +895,536 @@ export default function CandidatePublicDataQueue({
             gap: 12,
           }}
         >
-          {visibleItems.map((item) => {
-            const status = statusColors(item.review_status);
-            const busy = updatingId === item.id;
+          {visibleItems.map(
+            (item) => {
+              const status =
+                statusColors(
+                  item.review_status
+                );
 
-            return (
-              <article
-                key={item.id}
-                style={{
-                  padding: 18,
-                  border: "1px solid #e4e7ec",
-                  borderRadius: 14,
-                  background: "#fff",
-                }}
-              >
-                <div
+              const busy =
+                updatingId ===
+                  item.id ||
+                importingId ===
+                  item.id;
+
+              const canImport =
+                item.review_status ===
+                  "approved" &&
+                item.record_type !==
+                  "profile" &&
+                item.record_type !==
+                  "other";
+
+              return (
+                <article
+                  key={item.id}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 15,
-                    alignItems: "flex-start",
-                    flexWrap: "wrap",
+                    padding: 18,
+                    border:
+                      "1px solid #e4e7ec",
+                    borderRadius: 14,
+                    background: "#fff",
                   }}
                 >
                   <div
                     style={{
-                      minWidth: 0,
-                      flex: 1,
+                      display: "flex",
+                      justifyContent:
+                        "space-between",
+                      gap: 15,
+                      alignItems:
+                        "flex-start",
+                      flexWrap: "wrap",
                     }}
                   >
                     <div
                       style={{
-                        display: "flex",
-                        gap: 7,
-                        flexWrap: "wrap",
-                        alignItems: "center",
+                        minWidth: 0,
+                        flex: 1,
                       }}
                     >
-                      <span
+                      <div
                         style={{
-                          display: "inline-flex",
-                          padding: "4px 8px",
-                          borderRadius: 999,
-                          background: status.background,
-                          border: `1px solid ${status.border}`,
-                          color: status.color,
-                          fontSize: 11,
-                          fontWeight: 800,
+                          display:
+                            "flex",
+                          gap: 7,
+                          flexWrap:
+                            "wrap",
+                          alignItems:
+                            "center",
                         }}
                       >
-                        {STATUS_LABELS[item.review_status]}
-                      </span>
+                        <span
+                          style={{
+                            display:
+                              "inline-flex",
+                            padding:
+                              "4px 8px",
+                            borderRadius:
+                              999,
+                            background:
+                              status.background,
+                            border: `1px solid ${status.border}`,
+                            color:
+                              status.color,
+                            fontSize: 11,
+                            fontWeight:
+                              800,
+                          }}
+                        >
+                          {
+                            STATUS_LABELS[
+                              item
+                                .review_status
+                            ]
+                          }
+                        </span>
 
-                      <span
+                        <span
+                          style={{
+                            display:
+                              "inline-flex",
+                            padding:
+                              "4px 8px",
+                            borderRadius:
+                              999,
+                            background:
+                              "#f2f4f7",
+                            color:
+                              "#475467",
+                            fontSize: 11,
+                            fontWeight:
+                              800,
+                          }}
+                        >
+                          {
+                            TYPE_LABELS[
+                              item
+                                .record_type
+                            ]
+                          }
+                        </span>
+                      </div>
+
+                      <h4
                         style={{
-                          display: "inline-flex",
-                          padding: "4px 8px",
-                          borderRadius: 999,
-                          background: "#f2f4f7",
-                          color: "#475467",
-                          fontSize: 11,
-                          fontWeight: 800,
+                          margin:
+                            "10px 0 0",
+                          color:
+                            "#101828",
+                          fontSize: 17,
                         }}
                       >
-                        {TYPE_LABELS[item.record_type]}
-                      </span>
+                        {item.title ||
+                          "Registro sem título"}
+                      </h4>
+
+                      <div
+                        style={{
+                          marginTop: 5,
+                          color:
+                            "#667085",
+                          fontSize: 13,
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        <div>
+                          <strong>
+                            Fonte:
+                          </strong>{" "}
+                          {item
+                            .provider
+                            ?.name ||
+                            "Fonte externa"}
+                        </div>
+
+                        {item.external_id && (
+                          <div>
+                            <strong>
+                              ID externo:
+                            </strong>{" "}
+                            {
+                              item.external_id
+                            }
+                          </div>
+                        )}
+
+                        {item.occurred_at && (
+                          <div>
+                            <strong>
+                              Data do
+                              registro:
+                            </strong>{" "}
+                            {formatDate(
+                              item.occurred_at
+                            )}
+                          </div>
+                        )}
+
+                        <div>
+                          <strong>
+                            Recebido:
+                          </strong>{" "}
+                          {formatDate(
+                            item.created_at
+                          )}
+                        </div>
+                      </div>
+
+                      {item.summary && (
+                        <p
+                          style={{
+                            margin:
+                              "12px 0 0",
+                            color:
+                              "#475467",
+                            lineHeight: 1.7,
+                            whiteSpace:
+                              "pre-wrap",
+                          }}
+                        >
+                          {
+                            item.summary
+                          }
+                        </p>
+                      )}
+
+                      {item.external_url?.startsWith(
+                        "http"
+                      ) && (
+                        <a
+                          href={
+                            item.external_url
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display:
+                              "inline-flex",
+                            alignItems:
+                              "center",
+                            gap: 5,
+                            marginTop: 10,
+                            color:
+                              "#157347",
+                            fontWeight:
+                              800,
+                            fontSize: 13,
+                            textDecoration:
+                              "none",
+                          }}
+                        >
+                          Consultar
+                          registro na
+                          fonte
+
+                          <ExternalLink
+                            size={13}
+                          />
+                        </a>
+                      )}
                     </div>
+                  </div>
 
-                    <h4
-                      style={{
-                        margin: "10px 0 0",
-                        color: "#101828",
-                        fontSize: 17,
-                      }}
-                    >
-                      {item.title || "Registro sem título"}
-                    </h4>
-
+                  {item.review_status ===
+                    "approved" && (
                     <div
                       style={{
-                        marginTop: 5,
-                        color: "#667085",
+                        marginTop: 16,
+                        padding: 15,
+                        borderRadius: 10,
+                        border:
+                          "1px solid #abefc6",
+                        background:
+                          "#f6fef9",
+                      }}
+                    >
+                      {canImport ? (
+                        <>
+                          <div
+                            style={{
+                              marginBottom:
+                                10,
+                              color:
+                                "#05603a",
+                              fontSize:
+                                13,
+                              lineHeight:
+                                1.6,
+                            }}
+                          >
+                            Este registro
+                            passou pela
+                            conferência
+                            administrativa.
+                            A incorporação
+                            criará um
+                            registro na
+                            Atuação Pública
+                            com situação
+                            documental{" "}
+                            <strong>
+                              pendente de
+                              verificação
+                            </strong>
+                            .
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            disabled={
+                              busy
+                            }
+                            onClick={() =>
+                              void incorporateItem(
+                                item
+                              )
+                            }
+                          >
+                            {importingId ===
+                            item.id ? (
+                              <>
+                                <Loader2
+                                  size={
+                                    16
+                                  }
+                                />
+                                Incorporando...
+                              </>
+                            ) : (
+                              <>
+                                <ArrowRightCircle
+                                  size={
+                                    16
+                                  }
+                                />
+                                Incorporar à
+                                Atuação
+                                Pública
+                              </>
+                            )}
+                          </button>
+                        </>
+                      ) : (
+                        <div
+                          style={{
+                            color:
+                              "#475467",
+                            fontSize: 13,
+                            lineHeight:
+                              1.6,
+                          }}
+                        >
+                          Este tipo de
+                          registro não
+                          possui destino
+                          automático na
+                          Atuação Pública e
+                          exige tratamento
+                          administrativo
+                          específico.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {item.review_status !==
+                    "imported" && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                        marginTop: 18,
+                        paddingTop: 15,
+                        borderTop:
+                          "1px solid #eaecf0",
+                      }}
+                    >
+                      {item.review_status !==
+                        "in_review" && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={
+                            busy
+                          }
+                          onClick={() =>
+                            void changeStatus(
+                              item,
+                              "in_review"
+                            )
+                          }
+                        >
+                          <Clock3
+                            size={15}
+                          />
+                          Em revisão
+                        </button>
+                      )}
+
+                      {item.review_status !==
+                        "approved" && (
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          disabled={
+                            busy
+                          }
+                          onClick={() =>
+                            void changeStatus(
+                              item,
+                              "approved"
+                            )
+                          }
+                        >
+                          <CheckCircle2
+                            size={15}
+                          />
+                          Aprovar
+                        </button>
+                      )}
+
+                      {item.review_status !==
+                        "rejected" && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={
+                            busy
+                          }
+                          onClick={() =>
+                            void changeStatus(
+                              item,
+                              "rejected"
+                            )
+                          }
+                        >
+                          <XCircle
+                            size={15}
+                          />
+                          Rejeitar
+                        </button>
+                      )}
+
+                      {item.review_status !==
+                        "ignored" && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={
+                            busy
+                          }
+                          onClick={() =>
+                            void changeStatus(
+                              item,
+                              "ignored"
+                            )
+                          }
+                        >
+                          Ignorar
+                        </button>
+                      )}
+
+                      {item.review_status !==
+                        "pending" && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={
+                            busy
+                          }
+                          onClick={() =>
+                            void changeStatus(
+                              item,
+                              "pending"
+                            )
+                          }
+                        >
+                          <RotateCcw
+                            size={15}
+                          />
+                          Voltar para
+                          pendente
+                        </button>
+                      )}
+
+                      {updatingId ===
+                        item.id && (
+                        <span
+                          style={{
+                            display:
+                              "inline-flex",
+                            alignItems:
+                              "center",
+                            gap: 6,
+                            color:
+                              "#667085",
+                            fontSize: 13,
+                          }}
+                        >
+                          <Loader2
+                            size={15}
+                          />
+                          Atualizando...
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {item.review_status ===
+                    "imported" && (
+                    <div
+                      style={{
+                        marginTop: 16,
+                        padding: 12,
+                        borderRadius: 9,
+                        background:
+                          "#eef4ff",
+                        color:
+                          "#3538cd",
                         fontSize: 13,
                         lineHeight: 1.6,
                       }}
                     >
-                      <div>
-                        <strong>Fonte:</strong>{" "}
-                        {item.provider?.name || "Fonte externa"}
-                      </div>
+                      <strong>
+                        Registro
+                        incorporado.
+                      </strong>{" "}
 
-                      {item.external_id && (
-                        <div>
-                          <strong>ID externo:</strong>{" "}
-                          {item.external_id}
-                        </div>
+                      Foi criado na
+                      Atuação Pública
+                      {item.imported_table
+                        ? ` em ${item.imported_table}`
+                        : ""}
+                      .
+
+                      {item.imported_record_id && (
+                        <>
+                          {" "}
+                          Identificador
+                          interno:{" "}
+                          <code>
+                            {
+                              item.imported_record_id
+                            }
+                          </code>
+                          .
+                        </>
                       )}
 
-                      {item.occurred_at && (
-                        <div>
-                          <strong>Data do registro:</strong>{" "}
-                          {formatDate(item.occurred_at)}
-                        </div>
-                      )}
-
-                      <div>
-                        <strong>Recebido:</strong>{" "}
-                        {formatDate(item.created_at)}
-                      </div>
+                      {" "}O histórico
+                      original da fila
+                      permanece
+                      preservado.
                     </div>
-
-                    {item.summary && (
-                      <p
-                        style={{
-                          margin: "12px 0 0",
-                          color: "#475467",
-                          lineHeight: 1.7,
-                          whiteSpace: "pre-wrap",
-                        }}
-                      >
-                        {item.summary}
-                      </p>
-                    )}
-
-                    {item.external_url?.startsWith("http") && (
-                      <a
-                        href={item.external_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 5,
-                          marginTop: 10,
-                          color: "#157347",
-                          fontWeight: 800,
-                          fontSize: 13,
-                          textDecoration: "none",
-                        }}
-                      >
-                        Consultar registro na fonte
-                        <ExternalLink size={13} />
-                      </a>
-                    )}
-                  </div>
-                </div>
-
-                {item.review_status !== "imported" && (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      flexWrap: "wrap",
-                      marginTop: 18,
-                      paddingTop: 15,
-                      borderTop: "1px solid #eaecf0",
-                    }}
-                  >
-                    {item.review_status !== "in_review" && (
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled={busy}
-                        onClick={() =>
-                          void changeStatus(item, "in_review")
-                        }
-                      >
-                        <Clock3 size={15} />
-                        Em revisão
-                      </button>
-                    )}
-
-                    {item.review_status !== "approved" && (
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        disabled={busy}
-                        onClick={() =>
-                          void changeStatus(item, "approved")
-                        }
-                      >
-                        <CheckCircle2 size={15} />
-                        Aprovar
-                      </button>
-                    )}
-
-                    {item.review_status !== "rejected" && (
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled={busy}
-                        onClick={() =>
-                          void changeStatus(item, "rejected")
-                        }
-                      >
-                        <XCircle size={15} />
-                        Rejeitar
-                      </button>
-                    )}
-
-                    {item.review_status !== "ignored" && (
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled={busy}
-                        onClick={() =>
-                          void changeStatus(item, "ignored")
-                        }
-                      >
-                        Ignorar
-                      </button>
-                    )}
-
-                    {item.review_status !== "pending" && (
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled={busy}
-                        onClick={() =>
-                          void changeStatus(item, "pending")
-                        }
-                      >
-                        <RotateCcw size={15} />
-                        Voltar para pendente
-                      </button>
-                    )}
-
-                    {busy && (
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          color: "#667085",
-                          fontSize: 13,
-                        }}
-                      >
-                        <Loader2 size={15} />
-                        Atualizando...
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {item.review_status === "imported" && (
-                  <div
-                    style={{
-                      marginTop: 16,
-                      padding: 12,
-                      borderRadius: 9,
-                      background: "#eef4ff",
-                      color: "#3538cd",
-                      fontSize: 13,
-                    }}
-                  >
-                    Este registro já foi incorporado
-                    {item.imported_table
-                      ? ` em ${item.imported_table}`
-                      : ""}
-                    . O histórico da fila foi preservado.
-                  </div>
-                )}
-              </article>
-            );
-          })}
+                  )}
+                </article>
+              );
+            }
+          )}
         </div>
       )}
 
@@ -878,18 +1433,27 @@ export default function CandidatePublicDataQueue({
           padding: 15,
           borderRadius: 11,
           background: "#f9fafb",
-          border: "1px solid #e4e7ec",
+          border:
+            "1px solid #e4e7ec",
           color: "#667085",
           fontSize: 13,
           lineHeight: 1.65,
         }}
       >
-        <strong style={{ color: "#344054" }}>
-          Separação de etapas:
+        <strong
+          style={{
+            color: "#344054",
+          }}
+        >
+          Fluxo documental:
         </strong>{" "}
-        “Aprovado para incorporação” significa apenas que o registro
-        passou pela conferência administrativa. A incorporação à
-        Atuação Pública será uma operação separada e auditável.
+
+        receber → conferir → aprovar →
+        incorporar → verificar.
+
+        A incorporação não transforma
+        automaticamente o dado em
+        conteúdo público.
       </div>
     </div>
   );
