@@ -1,5 +1,5 @@
 const SENADO_API_BASE = "https://legis.senado.leg.br/dadosabertos";
-const DEFAULT_TIMEOUT_MS = 20000;
+const DEFAULT_TIMEOUT_MS = 20_000;
 
 export const SENADO_PROVIDER_CODE = "senado";
 export const SENADO_API_URL = SENADO_API_BASE;
@@ -25,15 +25,18 @@ export class SenadoApiError extends Error {
   }
 }
 
-function buildUrl(path: string) {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-  return `${SENADO_API_BASE}${normalized}`;
+function buildUrl(path: string): string {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${SENADO_API_BASE}${normalizedPath}`;
 }
 
 async function request(path: string): Promise<SenadoPayload> {
   const url = buildUrl(path);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, DEFAULT_TIMEOUT_MS);
 
   try {
     const response = await fetch(url, {
@@ -45,10 +48,11 @@ async function request(path: string): Promise<SenadoPayload> {
       signal: controller.signal,
     });
 
-    const contentType = response.headers.get("content-type") || "";
+    const contentType = response.headers.get("content-type") ?? "";
+
     let body: unknown;
 
-    if (contentType.includes("json")) {
+    if (contentType.toLowerCase().includes("json")) {
       body = await response.json();
     } else {
       body = await response.text();
@@ -63,7 +67,11 @@ async function request(path: string): Promise<SenadoPayload> {
       });
     }
 
-    if (!body || typeof body !== "object" || Array.isArray(body)) {
+    if (
+      !body ||
+      typeof body !== "object" ||
+      Array.isArray(body)
+    ) {
       throw new SenadoApiError({
         message: "A API do Senado retornou um formato inesperado.",
         status: response.status,
@@ -74,9 +82,14 @@ async function request(path: string): Promise<SenadoPayload> {
 
     return body as SenadoPayload;
   } catch (error) {
-    if (error instanceof SenadoApiError) throw error;
+    if (error instanceof SenadoApiError) {
+      throw error;
+    }
 
-    if (error instanceof Error && error.name === "AbortError") {
+    if (
+      error instanceof Error &&
+      error.name === "AbortError"
+    ) {
       throw new SenadoApiError({
         message: "Tempo limite excedido ao consultar o Senado Federal.",
         url,
@@ -84,7 +97,10 @@ async function request(path: string): Promise<SenadoPayload> {
     }
 
     throw new SenadoApiError({
-      message: error instanceof Error ? error.message : "Falha ao consultar o Senado Federal.",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Falha ao consultar o Senado Federal.",
       url,
       details: error,
     });
@@ -93,37 +109,60 @@ async function request(path: string): Promise<SenadoPayload> {
   }
 }
 
-export function senadorOfficialUrl(codigo: string | number) {
-  return `https://www25.senado.leg.br/web/senadores/senador/-/perfil/${encodeURIComponent(String(codigo))}`;
+export function senadorOfficialUrl(
+  codigo: string | number
+): string {
+  return `https://www25.senado.leg.br/web/senadores/senador/-/perfil/${encodeURIComponent(
+    String(codigo)
+  )}`;
 }
 
-/*
- * Serviços oficiais do Senado Federal.
- * A API retorna estruturas JSON hierárquicas; a normalização fica isolada
- * em normalizers.ts para que mudanças de envelope não contaminem o MFB.
- */
-export function obterSenador(codigo: string | number) {
-  return request(`/senador/${encodeURIComponent(String(codigo))}`);
+export function obterSenador(
+  codigo: string | number
+): Promise<SenadoPayload> {
+  return request(
+    `/senador/${encodeURIComponent(String(codigo))}`
+  );
 }
 
-export function obterMandatosSenador(codigo: string | number) {
-  return request(`/senador/${encodeURIComponent(String(codigo))}/mandatos`);
+export function obterMandatosSenador(
+  codigo: string | number
+): Promise<SenadoPayload> {
+  return request(
+    `/senador/${encodeURIComponent(String(codigo))}/mandatos`
+  );
 }
 
-export function obterComissoesSenador(codigo: string | number) {
-  return request(`/senador/${encodeURIComponent(String(codigo))}/comissoes`);
+export function obterComissoesSenador(
+  codigo: string | number
+): Promise<SenadoPayload> {
+  return request(
+    `/senador/${encodeURIComponent(String(codigo))}/comissoes`
+  );
 }
 
-export function obterCargosSenador(codigo: string | number) {
-  return request(`/senador/${encodeURIComponent(String(codigo))}/cargos`);
+export function obterCargosSenador(
+  codigo: string | number
+): Promise<SenadoPayload> {
+  return request(
+    `/senador/${encodeURIComponent(String(codigo))}/cargos`
+  );
 }
 
-export function obterLiderancasSenador(codigo: string | number) {
-  return request(`/senador/${encodeURIComponent(String(codigo))}/liderancas`);
+export function obterLiderancasSenador(
+  codigo: string | number
+): Promise<SenadoPayload> {
+  return request(
+    `/senador/${encodeURIComponent(String(codigo))}/liderancas`
+  );
 }
 
-export function obterVotacoesSenador(codigo: string | number) {
-  return request(`/senador/${encodeURIComponent(String(codigo))}/votacoes`);
+export function obterVotacoesSenador(
+  codigo: string | number
+): Promise<SenadoPayload> {
+  return request(
+    `/senador/${encodeURIComponent(String(codigo))}/votacoes`
+  );
 }
 
 export const senadoClient = {
