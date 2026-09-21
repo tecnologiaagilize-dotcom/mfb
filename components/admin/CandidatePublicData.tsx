@@ -235,6 +235,12 @@ export default function CandidatePublicData({
   const [lastSenadoSyncResult, setLastSenadoSyncResult] =
     useState<Record<string, unknown> | null>(null);
 
+  const [lastTseRun, setLastTseRun] =
+    useState<SyncRun | null>(null);
+  const [syncingTse, setSyncingTse] = useState(false);
+  const [lastTseSyncResult, setLastTseSyncResult] =
+    useState<Record<string, unknown> | null>(null);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -371,6 +377,37 @@ export default function CandidatePublicData({
         }
       } else {
         setLastSenadoRun(null);
+      }
+
+      const tseProvider =
+        providerList.find(
+          (provider) => provider.code === "tse"
+        ) || null;
+
+      if (tseProvider) {
+        const { data: runData, error: runError } =
+          await supabase
+            .from("mfb_public_data_sync_runs")
+            .select("*")
+            .eq("candidate_id", candidateId)
+            .eq("provider_id", tseProvider.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (runError) {
+          console.error(
+            "Erro ao carregar última sincronização do TSE:",
+            runError
+          );
+          setLastTseRun(null);
+        } else {
+          setLastTseRun(
+            (runData || null) as SyncRun | null
+          );
+        }
+      } else {
+        setLastTseRun(null);
       }
     } catch (err: any) {
       setError(
@@ -695,6 +732,86 @@ export default function CandidatePublicData({
     }
   }
 
+  const tseProvider =
+    providers.find(
+      (provider) => provider.code === "tse"
+    ) || null;
+
+  const tseIdentity =
+    identities.find(
+      (identity) => identity.provider?.code === "tse"
+    ) || null;
+
+  async function handleTseSync() {
+    if (!tseIdentity) {
+      setError(
+        "Vincule primeiro a identidade eleitoral do candidato no TSE."
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Executar a sincronização manual com o TSE? Os dados eleitorais coletados irão para a fila administrativa e não serão publicados automaticamente."
+    );
+
+    if (!confirmed) return;
+
+    setSyncingTse(true);
+    setError(null);
+    setSuccess(null);
+    setLastTseSyncResult(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/public-data/tse/sync/${candidateId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            externalIdentityId: tseIdentity.id,
+            sqCandidato: tseIdentity.external_id,
+          }),
+        }
+      );
+
+      const raw = await response.text();
+      let payload: SyncResponse = {};
+
+      if (raw) {
+        try {
+          payload = JSON.parse(raw) as SyncResponse;
+        } catch {
+          payload = { error: raw };
+        }
+      }
+
+      if (!response.ok || payload.ok === false) {
+        throw new Error(
+          payload.error ||
+            payload.detail ||
+            "Não foi possível sincronizar os dados do TSE."
+        );
+      }
+
+      setLastTseSyncResult(payload.result || null);
+      setSuccess(
+        payload.message ||
+          "Sincronização do TSE concluída. Os dados permanecem sujeitos à revisão administrativa."
+      );
+
+      await loadData();
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          "Não foi possível sincronizar os dados do TSE."
+      );
+    } finally {
+      setSyncingTse(false);
+    }
+  }
+
   const collected = lastCamaraSyncResult
     ? readMetric(lastCamaraSyncResult, [
         "collected",
@@ -813,6 +930,67 @@ export default function CandidatePublicData({
         "records_errors",
       ])
     : syncMetric(lastSenadoRun, [
+        "records_errors",
+        "errors",
+      ]);
+
+  const tseCollected = lastTseSyncResult
+    ? readMetric(lastTseSyncResult, [
+        "collected",
+        "recordsFound",
+        "records_found",
+        "recordsCollected",
+        "records_collected",
+      ])
+    : syncMetric(lastTseRun, [
+        "records_found",
+        "records_collected",
+        "collected",
+      ]);
+
+  const tseInserted = lastTseSyncResult
+    ? readMetric(lastTseSyncResult, [
+        "inserted",
+        "recordsInserted",
+        "records_inserted",
+        "recordsImported",
+        "records_imported",
+      ])
+    : syncMetric(lastTseRun, [
+        "records_inserted",
+        "records_imported",
+        "inserted",
+      ]);
+
+  const tseUpdated = lastTseSyncResult
+    ? readMetric(lastTseSyncResult, [
+        "updated",
+        "recordsUpdated",
+        "records_updated",
+      ])
+    : syncMetric(lastTseRun, [
+        "records_updated",
+        "updated",
+      ]);
+
+  const tseSkipped = lastTseSyncResult
+    ? readMetric(lastTseSyncResult, [
+        "skipped",
+        "recordsSkipped",
+        "records_skipped",
+      ])
+    : syncMetric(lastTseRun, [
+        "records_skipped",
+        "skipped",
+      ]);
+
+  const tseErrors = lastTseSyncResult
+    ? readMetric(lastTseSyncResult, [
+        "errors",
+        "recordsErrors",
+        "records_errors",
+      ])
+    : syncMetric(lastTseRun, [
         "records_errors",
         "errors",
       ]);
@@ -1334,6 +1512,206 @@ export default function CandidatePublicData({
               >
                 <strong>Última ocorrência:</strong>{" "}
                 {lastSenadoRun.error_message}
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      <section
+        style={{
+          padding: 20,
+          border: "1px solid #e4e7ec",
+          borderRadius: 14,
+          background: "#fff",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 16,
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <h3 style={{ margin: 0, fontSize: 18 }}>
+              Tribunal Superior Eleitoral — TSE
+            </h3>
+            <p
+              style={{
+                margin: "5px 0 0",
+                color: "#667085",
+                fontSize: 13,
+                lineHeight: 1.6,
+                maxWidth: 720,
+              }}
+            >
+              Sincronização manual dos dados eleitorais oficiais
+              vinculados pelo SQ_CANDIDATO. Os dados coletados
+              permanecem na fila administrativa para conferência e
+              não são publicados automaticamente.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={
+              syncingTse ||
+              !tseProvider ||
+              !tseIdentity
+            }
+            onClick={() => void handleTseSync()}
+            title={
+              tseIdentity
+                ? "Executar sincronização manual do TSE"
+                : "Vincule primeiro a identidade do TSE"
+            }
+          >
+            {syncingTse ? (
+              <>
+                <Loader2 size={16} />
+                Sincronizando...
+              </>
+            ) : (
+              <>
+                <Play size={16} />
+                Sincronizar TSE
+              </>
+            )}
+          </button>
+        </div>
+
+        {!tseProvider ? (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 14,
+              borderRadius: 10,
+              border: "1px solid #fedf89",
+              background: "#fffaeb",
+              color: "#b54708",
+              fontSize: 13,
+            }}
+          >
+            O provedor do TSE não está ativo na Central de Dados
+            Públicos. Execute primeiro o SQL de cadastro do provedor{" "}
+            <strong>tse</strong>.
+          </div>
+        ) : !tseIdentity ? (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 14,
+              borderRadius: 10,
+              border: "1px dashed #d0d5dd",
+              background: "#fcfcfd",
+              color: "#475467",
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
+            Para habilitar a sincronização, crie abaixo um vínculo
+            com <strong>{tseProvider.name}</strong> e informe como ID
+            externo o <strong>SQ_CANDIDATO</strong> oficial.
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                marginTop: 16,
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 10,
+              }}
+            >
+              <div style={{ padding: 13, border: "1px solid #e4e7ec", borderRadius: 10, background: "#f9fafb" }}>
+                <div style={{ color: "#667085", fontSize: 12, fontWeight: 700 }}>
+                  SQ_CANDIDATO
+                </div>
+                <div style={{ marginTop: 4, color: "#101828", fontWeight: 800 }}>
+                  {tseIdentity.external_id}
+                </div>
+              </div>
+
+              <div style={{ padding: 13, border: "1px solid #e4e7ec", borderRadius: 10, background: "#f9fafb" }}>
+                <div style={{ color: "#667085", fontSize: 12, fontWeight: 700 }}>
+                  Última execução
+                </div>
+                <div style={{ marginTop: 4, color: "#101828", fontWeight: 800 }}>
+                  {formatSyncDate(
+                    lastTseRun?.finished_at ||
+                      lastTseRun?.started_at ||
+                      lastTseRun?.created_at
+                  )}
+                </div>
+              </div>
+
+              <div style={{ padding: 13, border: "1px solid #e4e7ec", borderRadius: 10, background: "#f9fafb" }}>
+                <div style={{ color: "#667085", fontSize: 12, fontWeight: 700 }}>
+                  Situação
+                </div>
+                <div style={{ marginTop: 4, color: "#101828", fontWeight: 800 }}>
+                  {lastTseRun?.status || "Ainda não executada"}
+                </div>
+              </div>
+            </div>
+
+            {(lastTseRun || lastTseSyncResult) && (
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(120px, 1fr))",
+                  gap: 10,
+                }}
+              >
+                {[
+                  ["Coletados", tseCollected],
+                  ["Inseridos", tseInserted],
+                  ["Atualizados", tseUpdated],
+                  ["Ignorados", tseSkipped],
+                  ["Erros", tseErrors],
+                ].map(([label, value]) => (
+                  <div
+                    key={String(label)}
+                    style={{
+                      padding: 12,
+                      border: "1px solid #e4e7ec",
+                      borderRadius: 10,
+                      background: "#fff",
+                    }}
+                  >
+                    <div style={{ color: "#667085", fontSize: 12 }}>
+                      {label}
+                    </div>
+                    <div style={{ marginTop: 3, color: "#101828", fontSize: 20, fontWeight: 900 }}>
+                      {String(value)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {lastTseRun?.error_message && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: 12,
+                  borderRadius: 10,
+                  border: "1px solid #fecdca",
+                  background: "#fef3f2",
+                  color: "#b42318",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                }}
+              >
+                <strong>Última ocorrência:</strong>{" "}
+                {lastTseRun.error_message}
               </div>
             )}
           </>
