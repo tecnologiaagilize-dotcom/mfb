@@ -15,34 +15,61 @@ type ActivitySource = {
   verification_status?: string | null;
 };
 
-function formatDate(
-  value?: string | null
-) {
+type PublicCandidateSource = {
+  id: string;
+  source_type: string;
+  title: string | null;
+  url: string | null;
+  value: string | null;
+  source_name: string | null;
+  source_domain: string | null;
+  evidence_url: string | null;
+  source_level: string | null;
+  validation_status: string;
+  is_public: boolean;
+  is_primary: boolean;
+};
+
+const SOURCE_TYPES: Record<string, string> = {
+  tse: "Justiça Eleitoral / TSE",
+  partido: "Página do partido",
+  site_campanha: "Site / página de campanha",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  x: "X",
+  email_campanha: "E-mail público de campanha",
+  telefone_campanha: "Telefone público de campanha",
+  whatsapp_campanha: "WhatsApp público de campanha",
+  proposta_governo: "Proposta / plano de governo",
+  outra_fonte: "Outra fonte",
+};
+
+const SOURCE_LEVELS: Record<string, string> = {
+  justica_eleitoral: "Justiça Eleitoral",
+  partido: "Partido / federação",
+  candidato_campanha: "Candidato / campanha",
+  web: "Internet / outra origem",
+};
+
+function formatDate(value?: string | null) {
   if (!value) return null;
 
   try {
-    return new Intl.DateTimeFormat(
-      "pt-BR",
-      {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        timeZone: "UTC",
-      }
-    ).format(new Date(value));
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(value));
   } catch {
     return value;
   }
 }
 
-function sourceUrl(
-  item: ActivitySource
-) {
-  return (
-    item.official_url ||
-    item.source_url ||
-    null
-  );
+function sourceUrl(item: ActivitySource) {
+  return item.official_url || item.source_url || null;
 }
 
 function SourceLink({
@@ -52,9 +79,7 @@ function SourceLink({
 }) {
   const url = sourceUrl(item);
 
-  if (!url) {
-    return null;
-  }
+  if (!url) return null;
 
   return (
     <a
@@ -82,9 +107,7 @@ function VerifiedBadge({
 }: {
   status?: string | null;
 }) {
-  if (status !== "verified") {
-    return null;
-  }
+  if (status !== "verified") return null;
 
   return (
     <span
@@ -199,9 +222,7 @@ function ActivityCard({
 
         {source && (
           <VerifiedBadge
-            status={
-              source.verification_status
-            }
+            status={source.verification_status}
           />
         )}
       </div>
@@ -221,9 +242,178 @@ function ActivityCard({
 
       {children}
 
-      {source && (
-        <SourceLink item={source} />
-      )}
+      {source && <SourceLink item={source} />}
+    </article>
+  );
+}
+
+function PublicSourceCard({
+  source,
+}: {
+  source: PublicCandidateSource;
+}) {
+  const title =
+    source.title ||
+    SOURCE_TYPES[source.source_type] ||
+    "Fonte";
+
+  const type =
+    SOURCE_TYPES[source.source_type] ||
+    source.source_type;
+
+  const level =
+    source.source_level
+      ? SOURCE_LEVELS[source.source_level] ||
+        source.source_level
+      : null;
+
+  return (
+    <article
+      style={{
+        padding: 18,
+        border: source.is_primary
+          ? "2px solid #157347"
+          : "1px solid #e4e7ec",
+        borderRadius: 14,
+        background: source.is_primary
+          ? "#f6fef9"
+          : "#fff",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 7,
+              flexWrap: "wrap",
+              marginBottom: 7,
+            }}
+          >
+            <span
+              style={{
+                display: "inline-flex",
+                padding: "4px 8px",
+                borderRadius: 999,
+                background: "#ecfdf3",
+                color: "#027a48",
+                border: "1px solid #abefc6",
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
+              Fonte aprovada
+            </span>
+
+            {source.is_primary && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  padding: "4px 8px",
+                  borderRadius: 999,
+                  background: "#fffaeb",
+                  color: "#b54708",
+                  border: "1px solid #fedf89",
+                  fontSize: 11,
+                  fontWeight: 800,
+                }}
+              >
+                Fonte principal
+              </span>
+            )}
+          </div>
+
+          <h3
+            style={{
+              margin: 0,
+              fontSize: 17,
+              color: "#101828",
+            }}
+          >
+            {title}
+          </h3>
+
+          <div
+            style={{
+              marginTop: 7,
+              color: "#667085",
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
+            <div>
+              <strong>Tipo:</strong> {type}
+            </div>
+
+            {source.source_name && (
+              <div>
+                <strong>Origem:</strong>{" "}
+                {source.source_name}
+              </div>
+            )}
+
+            {level && (
+              <div>
+                <strong>Nível:</strong> {level}
+              </div>
+            )}
+
+            {source.source_domain && (
+              <div>
+                <strong>Domínio:</strong>{" "}
+                {source.source_domain}
+              </div>
+            )}
+
+            {source.value && (
+              <div>
+                <strong>Referência:</strong>{" "}
+                {source.value}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 9,
+          flexWrap: "wrap",
+          marginTop: 14,
+        }}
+      >
+        {source.url?.startsWith("http") && (
+          <a
+            href={source.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary"
+          >
+            Abrir fonte ↗
+          </a>
+        )}
+
+        {source.evidence_url?.startsWith("http") &&
+          source.evidence_url !== source.url && (
+            <a
+              href={source.evidence_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary"
+            >
+              Ver comprovação ↗
+            </a>
+          )}
+      </div>
     </article>
   );
 }
@@ -237,12 +427,9 @@ export default async function CandidatePage({
 }) {
   const { slug } = await params;
 
-  const supabase =
-    await createClient();
+  const supabase = await createClient();
 
-  const {
-    data: candidate,
-  } = await supabase
+  const { data: candidate } = await supabase
     .from("candidates_public")
     .select("*")
     .eq("slug", slug)
@@ -253,84 +440,87 @@ export default async function CandidatePage({
     return notFound();
   }
 
-  /*
-   * Atuação Pública
-   *
-   * Essas tabelas somente aparecerão publicamente
-   * se as políticas RLS permitirem leitura pública.
-   * Caso ainda estejam restritas ao admin,
-   * simplesmente retornarão listas vazias.
-   */
-
   const [
     positionsResult,
     propositionsResult,
     votesResult,
     committeesResult,
     deliveriesResult,
+    sourcesResult,
   ] = await Promise.all([
     supabase
-      .from(
-        "candidate_public_positions"
-      )
+      .from("candidate_public_positions")
       .select("*")
-      .eq(
-        "candidate_id",
-        candidate.id
-      )
+      .eq("candidate_id", candidate.id)
       .order("start_date", {
         ascending: false,
       }),
 
     supabase
-      .from(
-        "candidate_public_propositions"
-      )
+      .from("candidate_public_propositions")
       .select("*")
-      .eq(
-        "candidate_id",
-        candidate.id
-      )
+      .eq("candidate_id", candidate.id)
       .order("presented_at", {
         ascending: false,
       }),
 
     supabase
-      .from(
-        "candidate_public_votes"
-      )
+      .from("candidate_public_votes")
       .select("*")
-      .eq(
-        "candidate_id",
-        candidate.id
-      )
+      .eq("candidate_id", candidate.id)
       .order("vote_date", {
         ascending: false,
       }),
 
     supabase
-      .from(
-        "candidate_public_committees"
-      )
+      .from("candidate_public_committees")
       .select("*")
-      .eq(
-        "candidate_id",
-        candidate.id
-      )
+      .eq("candidate_id", candidate.id)
       .order("start_date", {
         ascending: false,
       }),
 
     supabase
-      .from(
-        "candidate_public_deliveries"
-      )
+      .from("candidate_public_deliveries")
       .select("*")
-      .eq(
-        "candidate_id",
-        candidate.id
-      )
+      .eq("candidate_id", candidate.id)
       .order("occurred_at", {
+        ascending: false,
+      }),
+
+    /*
+     * IMPORTANTE:
+     * Selecionamos explicitamente apenas campos adequados
+     * para exposição pública.
+     *
+     * notes, rejection_reason e created_by
+     * não são solicitados.
+     */
+    supabase
+      .from("candidate_sources")
+      .select(
+        `
+        id,
+        source_type,
+        title,
+        url,
+        value,
+        source_name,
+        source_domain,
+        evidence_url,
+        source_level,
+        validation_status,
+        is_public,
+        is_primary
+        `
+      )
+      .eq("candidate_id", candidate.id)
+      .eq("validation_status", "approved")
+      .eq("is_public", true)
+      .order("is_primary", {
+        ascending: false,
+      })
+      .order("created_at", {
         ascending: false,
       }),
   ]);
@@ -349,6 +539,10 @@ export default async function CandidatePage({
 
   const deliveries =
     deliveriesResult.data || [];
+
+  const publicSources =
+    (sourcesResult.data ||
+      []) as PublicCandidateSource[];
 
   const hasActivity =
     positions.length > 0 ||
@@ -403,8 +597,6 @@ export default async function CandidatePage({
             maxWidth: 1050,
           }}
         >
-          {/* VOLTAR */}
-
           <div
             style={{
               marginBottom: 22,
@@ -425,8 +617,6 @@ export default async function CandidatePage({
             </Link>
           </div>
 
-          {/* CABEÇALHO */}
-
           <div
             className="card"
             style={{
@@ -434,6 +624,8 @@ export default async function CandidatePage({
               overflow: "hidden",
             }}
           >
+            {/* CABEÇALHO */}
+
             <div
               style={{
                 display: "grid",
@@ -453,32 +645,27 @@ export default async function CandidatePage({
                     background: "#edf8f2",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent:
-                      "center",
+                    justifyContent: "center",
                   }}
                 >
                   {candidate.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={
-                        candidate.photo_url
-                      }
+                      src={candidate.photo_url}
                       alt={publicName}
                       style={{
                         width: "100%",
                         height: "100%",
                         objectFit: "cover",
-                        objectPosition:
-                          `${
-                            candidate.photo_position_x ??
-                            50
-                          }% ${
-                            candidate.photo_position_y ??
-                            20
-                          }%`,
+                        objectPosition: `${
+                          candidate.photo_position_x ??
+                          50
+                        }% ${
+                          candidate.photo_position_y ??
+                          20
+                        }%`,
                         transform: `scale(${
-                          candidate.photo_zoom ??
-                          1
+                          candidate.photo_zoom ?? 1
                         })`,
                       }}
                     />
@@ -507,8 +694,7 @@ export default async function CandidatePage({
                   style={{
                     fontSize:
                       "clamp(34px,5vw,54px)",
-                    margin:
-                      "12px 0 5px",
+                    margin: "12px 0 5px",
                     lineHeight: 1.05,
                   }}
                 >
@@ -521,8 +707,7 @@ export default async function CandidatePage({
                     candidate.name && (
                     <p
                       style={{
-                        margin:
-                          "8px 0 0",
+                        margin: "8px 0 0",
                         color: "#667085",
                         fontSize: 15,
                       }}
@@ -539,11 +724,9 @@ export default async function CandidatePage({
                   }}
                 >
                   {territory}
-
                   {candidate.party
                     ? ` · ${candidate.party}`
                     : ""}
-
                   {candidate.number
                     ? ` · Nº ${candidate.number}`
                     : ""}
@@ -556,13 +739,10 @@ export default async function CandidatePage({
                       fontSize: 18,
                       lineHeight: 1.7,
                       color: "#344054",
-                      whiteSpace:
-                        "pre-wrap",
+                      whiteSpace: "pre-wrap",
                     }}
                   >
-                    {
-                      candidate.mini_cv
-                    }
+                    {candidate.mini_cv}
                   </p>
                 )}
 
@@ -631,7 +811,7 @@ export default async function CandidatePage({
               </div>
             </div>
 
-            {/* PERFIL */}
+            {/* SOBRE */}
 
             {hasProfile && (
               <ContentSection title="Sobre">
@@ -641,19 +821,16 @@ export default async function CandidatePage({
                       margin: 0,
                       lineHeight: 1.8,
                       color: "#475467",
-                      whiteSpace:
-                        "pre-wrap",
+                      whiteSpace: "pre-wrap",
                     }}
                   >
-                    {
-                      candidate.biography
-                    }
+                    {candidate.biography}
                   </p>
                 )}
               </ContentSection>
             )}
 
-            {/* PROJETO / PROPOSTAS */}
+            {/* PROJETO E PROPOSTAS */}
 
             {hasPoliticalContent && (
               <ContentSection title="Projeto e propostas">
@@ -667,8 +844,7 @@ export default async function CandidatePage({
                     <div>
                       <h3
                         style={{
-                          margin:
-                            "0 0 8px",
+                          margin: "0 0 8px",
                           fontSize: 18,
                         }}
                       >
@@ -680,8 +856,7 @@ export default async function CandidatePage({
                           margin: 0,
                           lineHeight: 1.8,
                           color: "#475467",
-                          whiteSpace:
-                            "pre-wrap",
+                          whiteSpace: "pre-wrap",
                         }}
                       >
                         {
@@ -695,8 +870,7 @@ export default async function CandidatePage({
                     <div>
                       <h3
                         style={{
-                          margin:
-                            "0 0 8px",
+                          margin: "0 0 8px",
                           fontSize: 18,
                         }}
                       >
@@ -708,13 +882,10 @@ export default async function CandidatePage({
                           margin: 0,
                           lineHeight: 1.8,
                           color: "#475467",
-                          whiteSpace:
-                            "pre-wrap",
+                          whiteSpace: "pre-wrap",
                         }}
                       >
-                        {
-                          candidate.proposals
-                        }
+                        {candidate.proposals}
                       </p>
                     </div>
                   )}
@@ -723,8 +894,7 @@ export default async function CandidatePage({
                     <div>
                       <h3
                         style={{
-                          margin:
-                            "0 0 8px",
+                          margin: "0 0 8px",
                           fontSize: 18,
                         }}
                       >
@@ -736,8 +906,7 @@ export default async function CandidatePage({
                           margin: 0,
                           lineHeight: 1.8,
                           color: "#475467",
-                          whiteSpace:
-                            "pre-wrap",
+                          whiteSpace: "pre-wrap",
                         }}
                       >
                         {
@@ -756,8 +925,7 @@ export default async function CandidatePage({
               <ContentSection title="Atuação Pública documentada">
                 <p
                   style={{
-                    margin:
-                      "-5px 0 22px",
+                    margin: "-5px 0 22px",
                     color: "#667085",
                     lineHeight: 1.65,
                     fontSize: 14,
@@ -766,8 +934,8 @@ export default async function CandidatePage({
                   Registros factuais
                   cadastrados com base nas
                   fontes indicadas. A
-                  apresentação destes dados
-                  não constitui avaliação ou
+                  apresentação destes dados não
+                  constitui avaliação ou
                   recomendação política.
                 </p>
 
@@ -812,9 +980,7 @@ export default async function CandidatePage({
                                     ? "Atual"
                                     : null,
                               ]
-                                .filter(
-                                  Boolean
-                                )
+                                .filter(Boolean)
                                 .join(" · ")}
                               description={
                                 item.description
@@ -827,12 +993,9 @@ export default async function CandidatePage({
                     </div>
                   )}
 
-                  {propositions.length >
-                    0 && (
+                  {propositions.length > 0 && (
                     <div>
-                      <h3>
-                        Proposições
-                      </h3>
+                      <h3>Proposições</h3>
 
                       <div
                         style={{
@@ -857,9 +1020,7 @@ export default async function CandidatePage({
                                   item.presented_at
                                 ),
                               ]
-                                .filter(
-                                  Boolean
-                                )
+                                .filter(Boolean)
                                 .join(" · ")}
                               description={
                                 item.description
@@ -899,9 +1060,7 @@ export default async function CandidatePage({
                                   item.vote_date
                                 ),
                               ]
-                                .filter(
-                                  Boolean
-                                )
+                                .filter(Boolean)
                                 .join(" · ")}
                               description={
                                 item.description
@@ -912,16 +1071,11 @@ export default async function CandidatePage({
                                 <div
                                   style={{
                                     marginTop: 12,
-                                    padding:
-                                      "9px 12px",
-                                    borderRadius:
-                                      9,
-                                    background:
-                                      "#f9fafb",
-                                    color:
-                                      "#344054",
-                                    fontSize:
-                                      14,
+                                    padding: "9px 12px",
+                                    borderRadius: 9,
+                                    background: "#f9fafb",
+                                    color: "#344054",
+                                    fontSize: 14,
                                   }}
                                 >
                                   Voto registrado:{" "}
@@ -939,8 +1093,7 @@ export default async function CandidatePage({
                     </div>
                   )}
 
-                  {committees.length >
-                    0 && (
+                  {committees.length > 0 && (
                     <div>
                       <h3>
                         Comissões e colegiados
@@ -976,9 +1129,7 @@ export default async function CandidatePage({
                                     ? "Atual"
                                     : null,
                               ]
-                                .filter(
-                                  Boolean
-                                )
+                                .filter(Boolean)
                                 .join(" · ")}
                               description={
                                 item.description
@@ -991,8 +1142,7 @@ export default async function CandidatePage({
                     </div>
                   )}
 
-                  {deliveries.length >
-                    0 && (
+                  {deliveries.length > 0 && (
                     <div>
                       <h3>
                         Entregas e realizações documentadas
@@ -1021,9 +1171,7 @@ export default async function CandidatePage({
                                   item.occurred_at
                                 ),
                               ]
-                                .filter(
-                                  Boolean
-                                )
+                                .filter(Boolean)
                                 .join(" · ")}
                               description={
                                 item.description
@@ -1039,7 +1187,7 @@ export default async function CandidatePage({
               </ContentSection>
             )}
 
-            {/* EXPERIÊNCIA INFORMADA */}
+            {/* EXPERIÊNCIA */}
 
             {candidate.public_experience && (
               <ContentSection title="Experiência pública informada">
@@ -1051,10 +1199,44 @@ export default async function CandidatePage({
                     whiteSpace: "pre-wrap",
                   }}
                 >
-                  {
-                    candidate.public_experience
-                  }
+                  {candidate.public_experience}
                 </p>
+              </ContentSection>
+            )}
+
+            {/* FONTES E REFERÊNCIAS */}
+
+            {publicSources.length > 0 && (
+              <ContentSection title="Fontes e referências">
+                <p
+                  style={{
+                    margin: "-5px 0 20px",
+                    color: "#667085",
+                    lineHeight: 1.65,
+                    fontSize: 14,
+                  }}
+                >
+                  Referências aprovadas para
+                  consulta pública e conferência
+                  das informações apresentadas
+                  neste perfil.
+                </p>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(280px, 1fr))",
+                    gap: 14,
+                  }}
+                >
+                  {publicSources.map((source) => (
+                    <PublicSourceCard
+                      key={source.id}
+                      source={source}
+                    />
+                  ))}
+                </div>
               </ContentSection>
             )}
 
@@ -1063,9 +1245,7 @@ export default async function CandidatePage({
             {candidate.video_url && (
               <ContentSection title="Apresentação">
                 <a
-                  href={
-                    candidate.video_url
-                  }
+                  href={candidate.video_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn btn-secondary"
@@ -1075,52 +1255,51 @@ export default async function CandidatePage({
               </ContentSection>
             )}
 
-            {/* FONTE PRINCIPAL */}
+            {/* FONTE LEGADA */}
 
-            {candidate.source_url && (
-              <ContentSection title="Fonte de referência">
-                <p
-                  style={{
-                    margin:
-                      "0 0 12px",
-                    color: "#667085",
-                    lineHeight: 1.65,
-                  }}
-                >
-                  Consulte a referência
-                  registrada para conferência
-                  das informações deste perfil.
-                </p>
-
-                <a
-                  href={
-                    candidate.source_url
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-secondary"
-                >
-                  Consultar fonte ↗
-                </a>
-
-                {candidate.verified_at && (
-                  <div
+            {candidate.source_url &&
+              publicSources.length === 0 && (
+                <ContentSection title="Fonte de referência">
+                  <p
                     style={{
-                      marginTop: 12,
+                      margin: "0 0 12px",
                       color: "#667085",
-                      fontSize: 13,
+                      lineHeight: 1.65,
                     }}
                   >
-                    Data de conferência:{" "}
-                    {formatDate(
-                      candidate.verified_at
-                    )}
-                  </div>
-                )}
-              </ContentSection>
-            )}
+                    Consulte a referência
+                    registrada para conferência
+                    das informações deste
+                    perfil.
+                  </p>
 
-            {/* NOTA */}
+                  <a
+                    href={candidate.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary"
+                  >
+                    Consultar fonte ↗
+                  </a>
+
+                  {candidate.verified_at && (
+                    <div
+                      style={{
+                        marginTop: 12,
+                        color: "#667085",
+                        fontSize: 13,
+                      }}
+                    >
+                      Data de conferência:{" "}
+                      {formatDate(
+                        candidate.verified_at
+                      )}
+                    </div>
+                  )}
+                </ContentSection>
+              )}
+
+            {/* NOTA DOCUMENTAL */}
 
             <div
               style={{
@@ -1128,8 +1307,7 @@ export default async function CandidatePage({
                 padding: 18,
                 borderRadius: 12,
                 background: "#f9fafb",
-                border:
-                  "1px solid #e4e7ec",
+                border: "1px solid #e4e7ec",
                 color: "#667085",
                 fontSize: 13,
                 lineHeight: 1.65,
@@ -1139,11 +1317,12 @@ export default async function CandidatePage({
               apresentadas para consulta
               documental. Propostas,
               prioridades e informações de
-              apresentação são identificadas
-              conforme os dados cadastrados no
-              perfil. Registros de atuação
-              pública podem conter links para
-              suas respectivas fontes.
+              apresentação correspondem aos
+              dados cadastrados no perfil.
+              Registros de atuação pública e
+              referências documentais podem
+              conter links para suas respectivas
+              fontes.
             </div>
           </div>
         </div>
