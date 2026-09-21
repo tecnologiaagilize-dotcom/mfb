@@ -226,7 +226,13 @@ export default function CandidatePublicData({
   const [lastCamaraRun, setLastCamaraRun] =
     useState<SyncRun | null>(null);
   const [syncingCamara, setSyncingCamara] = useState(false);
-  const [lastSyncResult, setLastSyncResult] =
+  const [lastCamaraSyncResult, setLastCamaraSyncResult] =
+    useState<Record<string, unknown> | null>(null);
+
+  const [lastSenadoRun, setLastSenadoRun] =
+    useState<SyncRun | null>(null);
+  const [syncingSenado, setSyncingSenado] = useState(false);
+  const [lastSenadoSyncResult, setLastSenadoSyncResult] =
     useState<Record<string, unknown> | null>(null);
 
   const loadData = useCallback(async () => {
@@ -334,6 +340,37 @@ export default function CandidatePublicData({
         }
       } else {
         setLastCamaraRun(null);
+      }
+
+      const senadoProvider =
+        providerList.find(
+          (provider) => provider.code === "senado"
+        ) || null;
+
+      if (senadoProvider) {
+        const { data: runData, error: runError } =
+          await supabase
+            .from("mfb_public_data_sync_runs")
+            .select("*")
+            .eq("candidate_id", candidateId)
+            .eq("provider_id", senadoProvider.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (runError) {
+          console.error(
+            "Erro ao carregar última sincronização do Senado:",
+            runError
+          );
+          setLastSenadoRun(null);
+        } else {
+          setLastSenadoRun(
+            (runData || null) as SyncRun | null
+          );
+        }
+      } else {
+        setLastSenadoRun(null);
       }
     } catch (err: any) {
       setError(
@@ -525,7 +562,7 @@ export default function CandidatePublicData({
     setSyncingCamara(true);
     setError(null);
     setSuccess(null);
-    setLastSyncResult(null);
+    setLastCamaraSyncResult(null);
 
     try {
       const response = await fetch(
@@ -561,7 +598,7 @@ export default function CandidatePublicData({
         );
       }
 
-      setLastSyncResult(payload.result || null);
+      setLastCamaraSyncResult(payload.result || null);
       setSuccess(
         payload.message ||
           "Sincronização da Câmara concluída. Os dados permanecem sujeitos à revisão administrativa."
@@ -578,8 +615,88 @@ export default function CandidatePublicData({
     }
   }
 
-  const collected = lastSyncResult
-    ? readMetric(lastSyncResult, [
+  const senadoProvider =
+    providers.find(
+      (provider) => provider.code === "senado"
+    ) || null;
+
+  const senadoIdentity =
+    identities.find(
+      (identity) => identity.provider?.code === "senado"
+    ) || null;
+
+  async function handleSenadoSync() {
+    if (!senadoIdentity) {
+      setError(
+        "Vincule primeiro a identidade do candidato no Senado Federal."
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Executar a sincronização manual com o Senado Federal? Os registros coletados irão para a fila administrativa e não serão publicados automaticamente."
+    );
+
+    if (!confirmed) return;
+
+    setSyncingSenado(true);
+    setError(null);
+    setSuccess(null);
+    setLastSenadoSyncResult(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/public-data/senado/sync/${candidateId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            externalIdentityId: senadoIdentity.id,
+            senadorId: senadoIdentity.external_id,
+          }),
+        }
+      );
+
+      const raw = await response.text();
+      let payload: SyncResponse = {};
+
+      if (raw) {
+        try {
+          payload = JSON.parse(raw) as SyncResponse;
+        } catch {
+          payload = { error: raw };
+        }
+      }
+
+      if (!response.ok || payload.ok === false) {
+        throw new Error(
+          payload.error ||
+            payload.detail ||
+            "Não foi possível sincronizar os dados do Senado."
+        );
+      }
+
+      setLastSenadoSyncResult(payload.result || null);
+      setSuccess(
+        payload.message ||
+          "Sincronização do Senado concluída. Os dados permanecem sujeitos à revisão administrativa."
+      );
+
+      await loadData();
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          "Não foi possível sincronizar os dados do Senado."
+      );
+    } finally {
+      setSyncingSenado(false);
+    }
+  }
+
+  const collected = lastCamaraSyncResult
+    ? readMetric(lastCamaraSyncResult, [
         "collected",
         "recordsFound",
         "records_found",
@@ -592,8 +709,8 @@ export default function CandidatePublicData({
         "collected",
       ]);
 
-  const inserted = lastSyncResult
-    ? readMetric(lastSyncResult, [
+  const inserted = lastCamaraSyncResult
+    ? readMetric(lastCamaraSyncResult, [
         "inserted",
         "recordsInserted",
         "records_inserted",
@@ -606,8 +723,8 @@ export default function CandidatePublicData({
         "inserted",
       ]);
 
-  const updated = lastSyncResult
-    ? readMetric(lastSyncResult, [
+  const updated = lastCamaraSyncResult
+    ? readMetric(lastCamaraSyncResult, [
         "updated",
         "recordsUpdated",
         "records_updated",
@@ -617,8 +734,8 @@ export default function CandidatePublicData({
         "updated",
       ]);
 
-  const skipped = lastSyncResult
-    ? readMetric(lastSyncResult, [
+  const skipped = lastCamaraSyncResult
+    ? readMetric(lastCamaraSyncResult, [
         "skipped",
         "recordsSkipped",
         "records_skipped",
@@ -628,13 +745,74 @@ export default function CandidatePublicData({
         "skipped",
       ]);
 
-  const errors = lastSyncResult
-    ? readMetric(lastSyncResult, [
+  const errors = lastCamaraSyncResult
+    ? readMetric(lastCamaraSyncResult, [
         "errors",
         "recordsErrors",
         "records_errors",
       ])
     : syncMetric(lastCamaraRun, [
+        "records_errors",
+        "errors",
+      ]);
+
+  const senadoCollected = lastSenadoSyncResult
+    ? readMetric(lastSenadoSyncResult, [
+        "collected",
+        "recordsFound",
+        "records_found",
+        "recordsCollected",
+        "records_collected",
+      ])
+    : syncMetric(lastSenadoRun, [
+        "records_found",
+        "records_collected",
+        "collected",
+      ]);
+
+  const senadoInserted = lastSenadoSyncResult
+    ? readMetric(lastSenadoSyncResult, [
+        "inserted",
+        "recordsInserted",
+        "records_inserted",
+        "recordsImported",
+        "records_imported",
+      ])
+    : syncMetric(lastSenadoRun, [
+        "records_inserted",
+        "records_imported",
+        "inserted",
+      ]);
+
+  const senadoUpdated = lastSenadoSyncResult
+    ? readMetric(lastSenadoSyncResult, [
+        "updated",
+        "recordsUpdated",
+        "records_updated",
+      ])
+    : syncMetric(lastSenadoRun, [
+        "records_updated",
+        "updated",
+      ]);
+
+  const senadoSkipped = lastSenadoSyncResult
+    ? readMetric(lastSenadoSyncResult, [
+        "skipped",
+        "recordsSkipped",
+        "records_skipped",
+      ])
+    : syncMetric(lastSenadoRun, [
+        "records_skipped",
+        "skipped",
+      ]);
+
+  const senadoErrors = lastSenadoSyncResult
+    ? readMetric(lastSenadoSyncResult, [
+        "errors",
+        "recordsErrors",
+        "records_errors",
+      ])
+    : syncMetric(lastSenadoRun, [
         "records_errors",
         "errors",
       ]);
@@ -903,7 +1081,7 @@ export default function CandidatePublicData({
               </div>
             </div>
 
-            {(lastCamaraRun || lastSyncResult) && (
+            {(lastCamaraRun || lastCamaraSyncResult) && (
               <div
                 style={{
                   marginTop: 10,
@@ -955,6 +1133,207 @@ export default function CandidatePublicData({
               >
                 <strong>Última ocorrência:</strong>{" "}
                 {lastCamaraRun.error_message}
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      <section
+        style={{
+          padding: 20,
+          border: "1px solid #e4e7ec",
+          borderRadius: 14,
+          background: "#fff",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 16,
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <h3 style={{ margin: 0, fontSize: 18 }}>
+              Senado Federal
+            </h3>
+            <p
+              style={{
+                margin: "5px 0 0",
+                color: "#667085",
+                fontSize: 13,
+                lineHeight: 1.6,
+                maxWidth: 720,
+              }}
+            >
+              Sincronização manual da fonte oficial vinculada.
+              Os registros recebidos permanecem na fila de
+              conferência antes de eventual incorporação à
+              Atuação Pública.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={
+              syncingSenado ||
+              !senadoProvider ||
+              !senadoIdentity
+            }
+            onClick={() => void handleSenadoSync()}
+            title={
+              senadoIdentity
+                ? "Executar sincronização manual do Senado"
+                : "Vincule primeiro a identidade do Senado"
+            }
+          >
+            {syncingSenado ? (
+              <>
+                <Loader2 size={16} />
+                Sincronizando...
+              </>
+            ) : (
+              <>
+                <Play size={16} />
+                Sincronizar Senado
+              </>
+            )}
+          </button>
+        </div>
+
+        {!senadoProvider ? (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 14,
+              borderRadius: 10,
+              border: "1px solid #fedf89",
+              background: "#fffaeb",
+              color: "#b54708",
+              fontSize: 13,
+            }}
+          >
+            O provedor do Senado não está ativo na Central
+            de Dados Públicos. Execute primeiro o SQL de
+            cadastro do provedor <strong>senado</strong>.
+          </div>
+        ) : !senadoIdentity ? (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 14,
+              borderRadius: 10,
+              border: "1px dashed #d0d5dd",
+              background: "#fcfcfd",
+              color: "#475467",
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
+            Para habilitar a sincronização, crie abaixo um
+            vínculo com <strong>{senadoProvider.name}</strong>{" "}
+            e informe como ID externo o código parlamentar
+            oficial do Senado.
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                marginTop: 16,
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 10,
+              }}
+            >
+              <div style={{ padding: 13, border: "1px solid #e4e7ec", borderRadius: 10, background: "#f9fafb" }}>
+                <div style={{ color: "#667085", fontSize: 12, fontWeight: 700 }}>
+                  ID no Senado
+                </div>
+                <div style={{ marginTop: 4, color: "#101828", fontWeight: 800 }}>
+                  {senadoIdentity.external_id}
+                </div>
+              </div>
+
+              <div style={{ padding: 13, border: "1px solid #e4e7ec", borderRadius: 10, background: "#f9fafb" }}>
+                <div style={{ color: "#667085", fontSize: 12, fontWeight: 700 }}>
+                  Última execução
+                </div>
+                <div style={{ marginTop: 4, color: "#101828", fontWeight: 800 }}>
+                  {formatSyncDate(
+                    lastSenadoRun?.finished_at ||
+                      lastSenadoRun?.started_at ||
+                      lastSenadoRun?.created_at
+                  )}
+                </div>
+              </div>
+
+              <div style={{ padding: 13, border: "1px solid #e4e7ec", borderRadius: 10, background: "#f9fafb" }}>
+                <div style={{ color: "#667085", fontSize: 12, fontWeight: 700 }}>
+                  Situação
+                </div>
+                <div style={{ marginTop: 4, color: "#101828", fontWeight: 800 }}>
+                  {lastSenadoRun?.status || "Ainda não executada"}
+                </div>
+              </div>
+            </div>
+
+            {(lastSenadoRun || lastSenadoSyncResult) && (
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(120px, 1fr))",
+                  gap: 10,
+                }}
+              >
+                {[
+                  ["Coletados", senadoCollected],
+                  ["Inseridos", senadoInserted],
+                  ["Atualizados", senadoUpdated],
+                  ["Ignorados", senadoSkipped],
+                  ["Erros", senadoErrors],
+                ].map(([label, value]) => (
+                  <div
+                    key={String(label)}
+                    style={{
+                      padding: 12,
+                      border: "1px solid #e4e7ec",
+                      borderRadius: 10,
+                      background: "#fff",
+                    }}
+                  >
+                    <div style={{ color: "#667085", fontSize: 12 }}>
+                      {label}
+                    </div>
+                    <div style={{ marginTop: 3, color: "#101828", fontSize: 20, fontWeight: 900 }}>
+                      {String(value)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {lastSenadoRun?.error_message && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: 12,
+                  borderRadius: 10,
+                  border: "1px solid #fecdca",
+                  background: "#fef3f2",
+                  color: "#b42318",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                }}
+              >
+                <strong>Última ocorrência:</strong>{" "}
+                {lastSenadoRun.error_message}
               </div>
             )}
           </>
