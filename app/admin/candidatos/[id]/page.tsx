@@ -7,6 +7,7 @@ import CandidateOffices from "@/components/admin/CandidateOffices";
 import CandidatePublicActivity from "@/components/admin/CandidatePublicActivity";
 import CandidateSources from "@/components/admin/CandidateSources";
 import CandidatePublicData from "@/components/admin/CandidatePublicData";
+import CandidatePublicDataQueue from "@/components/admin/CandidatePublicDataQueue";
 import CandidateCompletenessPanel from "@/components/admin/CandidateCompletenessPanel";
 import CandidateReviewPanel from "@/components/admin/CandidateReviewPanel";
 import CandidateDangerZone from "@/components/admin/CandidateDangerZone";
@@ -318,14 +319,24 @@ export default async function CandidateEditPage({
             <SectionHeader
               number={6}
               title="Dados Públicos"
-              description="Vincule o candidato aos identificadores utilizados por fontes públicas e oficiais para futuras integrações de dados."
+              description="Vincule o candidato às fontes públicas e acompanhe os registros recebidos antes de qualquer incorporação à Atuação Pública."
             />
 
-            <CandidatePublicData
-              candidateId={
-                candidate.id
-              }
-            />
+            <div className="space-y-8">
+              <CandidatePublicData
+                candidateId={
+                  candidate.id
+                }
+              />
+
+              <div className="border-t border-slate-200 pt-8">
+                <CandidatePublicDataQueue
+                  candidateId={
+                    candidate.id
+                  }
+                />
+              </div>
+            </div>
           </section>
 
           {/* 7 */}
