@@ -8,6 +8,7 @@ import {
   Database,
   ExternalLink,
   FileSearch,
+  GitCompare,
   Loader2,
   RefreshCw,
   RotateCcw,
@@ -66,8 +67,20 @@ type QueueItem = {
   imported_table: string | null;
   imported_record_id: string | null;
 
+  source_change_pending: boolean;
+  latest_source_version_id: string | null;
+
   created_at: string;
   updated_at: string;
+};
+
+type SourceVersion = {
+  id: string; queue_item_id: string; content_hash: string;
+  change_type: "snapshot" | "changed";
+  review_status: "recorded" | "pending_review" | "accepted" | "rejected";
+  title: string; summary: string | null; occurred_at: string | null;
+  external_url: string | null; normalized_payload: Record<string, unknown> | null;
+  compared_to_version_id: string | null; created_at: string;
 };
 
 type Provider = {
@@ -189,6 +202,10 @@ export default function CandidatePublicDataQueue({
 
   const [importingId, setImportingId] =
     useState<string | null>(null);
+  const [reviewingChangeId, setReviewingChangeId] =
+    useState<string | null>(null);
+  const [versionsByItem, setVersionsByItem] =
+    useState<Record<string, SourceVersion[]>>({});
 
   const [filter, setFilter] =
     useState<QueueStatus | "all">("all");
@@ -232,6 +249,8 @@ export default function CandidatePublicDataQueue({
               reviewed_at,
               imported_table,
               imported_record_id,
+              source_change_pending,
+              latest_source_version_id,
               created_at,
               updated_at
             `
@@ -276,6 +295,21 @@ export default function CandidatePublicDataQueue({
       const queueList =
         (queueResult.data ||
           []) as QueueItem[];
+
+      const changedItemIds = queueList.filter((item) => item.source_change_pending).map((item) => item.id);
+      const versionMap: Record<string, SourceVersion[]> = {};
+      if (changedItemIds.length > 0) {
+        const { data: versionData, error: versionError } = await supabase
+          .from("mfb_public_data_record_versions")
+          .select("id, queue_item_id, content_hash, change_type, review_status, title, summary, occurred_at, external_url, normalized_payload, compared_to_version_id, created_at")
+          .in("queue_item_id", changedItemIds)
+          .order("created_at", { ascending: false });
+        if (versionError) throw versionError;
+        for (const version of (versionData || []) as SourceVersion[]) {
+          (versionMap[version.queue_item_id] ||= []).push(version);
+        }
+      }
+      setVersionsByItem(versionMap);
 
       setProviders(providerList);
 
@@ -472,6 +506,59 @@ export default function CandidatePublicDataQueue({
     } finally {
       setUpdatingId(null);
     }
+  }
+
+  async function reviewSourceChange(item: QueueItemWithProvider, decision: "accepted" | "rejected") {
+    if (!item.source_change_pending) return;
+    const versions = versionsByItem[item.id] || [];
+    const latest = versions.find((v) => v.id === item.latest_source_version_id) || versions[0];
+    if (!latest) { setError("Não foi possível localizar a versão atualizada da fonte."); return; }
+
+    const confirmed = window.confirm(decision === "accepted"
+      ? "Aceitar a nova versão da fonte oficial? O registro já incorporado não será sobrescrito nem publicado automaticamente."
+      : "Rejeitar esta alteração? O registro já incorporado permanecerá inalterado.");
+    if (!confirmed) return;
+
+    setReviewingChangeId(item.id); setError(null); setSuccess(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sessão administrativa não encontrada.");
+      const now = new Date().toISOString();
+
+      const { error: versionError } = await supabase.from("mfb_public_data_record_versions")
+        .update({ review_status: decision, reviewed_by: user.id, reviewed_at: now })
+        .eq("id", latest.id).eq("queue_item_id", item.id);
+      if (versionError) throw versionError;
+
+      const queueUpdate: Record<string, unknown> = {
+        source_change_pending: false, latest_source_version_id: latest.id,
+      };
+      if (decision === "accepted") {
+        queueUpdate.title = latest.title; queueUpdate.summary = latest.summary;
+        queueUpdate.occurred_at = latest.occurred_at; queueUpdate.external_url = latest.external_url;
+        queueUpdate.normalized_payload = latest.normalized_payload;
+      }
+      const { error: queueError } = await supabase.from("mfb_public_data_import_queue")
+        .update(queueUpdate).eq("id", item.id).eq("candidate_id", candidateId);
+      if (queueError) throw queueError;
+
+      const { error: eventError } = await supabase.from("mfb_public_data_import_events").insert({
+        queue_item_id: item.id,
+        event_type: decision === "accepted" ? "source_change_accepted" : "source_change_rejected",
+        previous_status: item.review_status, new_status: item.review_status, performed_by: user.id,
+        notes: decision === "accepted"
+          ? "Nova versão da fonte aceita administrativamente. O conteúdo já incorporado não foi sobrescrito automaticamente."
+          : "Alteração da fonte rejeitada administrativamente. O conteúdo já incorporado foi preservado.",
+        metadata: { source_version_id: latest.id, compared_to_version_id: latest.compared_to_version_id,
+          provider_id: item.provider_id, record_type: item.record_type },
+      });
+      if (eventError) throw eventError;
+      setSuccess(decision === "accepted" ? "Alteração aceita. O registro incorporado permaneceu inalterado."
+        : "Alteração rejeitada e registrada no histórico.");
+      await loadData();
+    } catch (err: any) {
+      setError(err?.message || "Não foi possível concluir a revisão da alteração.");
+    } finally { setReviewingChangeId(null); }
   }
 
   async function incorporateItem(
@@ -906,7 +993,8 @@ export default function CandidatePublicDataQueue({
                 updatingId ===
                   item.id ||
                 importingId ===
-                  item.id;
+                  item.id ||
+                reviewingChangeId === item.id;
 
               const canImport =
                 item.review_status ===
@@ -1126,6 +1214,55 @@ export default function CandidatePublicDataQueue({
                       )}
                     </div>
                   </div>
+
+                  {item.source_change_pending && (() => {
+                    const versions = versionsByItem[item.id] || [];
+                    const latest = versions.find((v) => v.id === item.latest_source_version_id) || versions[0];
+                    const previous = latest?.compared_to_version_id
+                      ? versions.find((v) => v.id === latest.compared_to_version_id)
+                      : versions.find((v) => v.id !== latest?.id);
+                    return (
+                      <div style={{ marginTop: 16, padding: 16, borderRadius: 12, border: "1px solid #fedf89", background: "#fffcf5" }}>
+                        <div style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+                          <GitCompare size={19} style={{ color: "#b54708", flexShrink: 0 }} />
+                          <div><strong style={{ color: "#93370d" }}>Alteração na fonte oficial</strong>
+                            <div style={{ marginTop: 5, color: "#667085", fontSize: 13, lineHeight: 1.6 }}>
+                              A fonte apresentou conteúdo diferente. O registro já incorporado não foi alterado automaticamente.
+                            </div>
+                          </div>
+                        </div>
+                        {latest ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginTop: 14 }}>
+                          <div style={{ padding: 12, borderRadius: 9, border: "1px solid #e4e7ec", background: "#fff" }}>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: "#475467", marginBottom: 8 }}>Versão anterior</div>
+                            <strong>{previous?.title || item.title || "Registro"}</strong>
+                            <p style={{ margin: "7px 0 0", color: "#667085", fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                              {previous?.summary || item.summary || "Sem resumo disponível."}</p>
+                          </div>
+                          <div style={{ padding: 12, borderRadius: 9, border: "1px solid #fedf89", background: "#fffaf0" }}>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: "#b54708", marginBottom: 8 }}>Nova versão da fonte</div>
+                            <strong>{latest.title || "Registro"}</strong>
+                            <p style={{ margin: "7px 0 0", color: "#667085", fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                              {latest.summary || "Sem resumo disponível."}</p>
+                            <div style={{ marginTop: 8, fontSize: 12, color: "#667085" }}>Recebida em {formatDate(latest.created_at)}</div>
+                            {latest.external_url?.startsWith("http") && <a href={latest.external_url} target="_blank" rel="noopener noreferrer"
+                              style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 8, color: "#157347", fontWeight: 800, fontSize: 12, textDecoration: "none" }}>
+                              Conferir fonte <ExternalLink size={12} /></a>}
+                          </div>
+                        </div> : <div style={{ marginTop: 12, color: "#b42318", fontSize: 13 }}>Histórico da nova versão indisponível.</div>}
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+                          <button type="button" className="btn btn-primary" disabled={busy || !latest}
+                            onClick={() => void reviewSourceChange(item, "accepted")}><CheckCircle2 size={15} /> Aceitar atualização</button>
+                          <button type="button" className="btn btn-secondary" disabled={busy || !latest}
+                            onClick={() => void reviewSourceChange(item, "rejected")}><XCircle size={15} /> Rejeitar atualização</button>
+                          {reviewingChangeId === item.id && <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#667085", fontSize: 13 }}>
+                            <Loader2 size={15} /> Registrando decisão...</span>}
+                        </div>
+                        <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.55, color: "#667085" }}>
+                          Aceitar atualiza a versão documental da fila. A Atuação Pública permanece inalterada e não há publicação automática.
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {item.review_status ===
                     "approved" && (
