@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -9,6 +9,7 @@ import {
   Link2,
   Loader2,
   Pencil,
+  Play,
   Plus,
   RefreshCw,
   Trash2,
@@ -49,6 +50,86 @@ type ExternalIdentity = {
 type IdentityWithProvider = ExternalIdentity & {
   provider?: Provider;
 };
+
+type SyncRun = {
+  id: string;
+  provider_id?: string | null;
+  candidate_id?: string | null;
+  status?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  created_at?: string | null;
+  records_found?: number | null;
+  records_collected?: number | null;
+  records_imported?: number | null;
+  records_inserted?: number | null;
+  records_updated?: number | null;
+  records_skipped?: number | null;
+  records_errors?: number | null;
+  error_message?: string | null;
+  metadata?: Record<string, unknown> | null;
+  [key: string]: unknown;
+};
+
+type SyncResponse = {
+  ok?: boolean;
+  error?: string;
+  detail?: string;
+  message?: string;
+  result?: Record<string, unknown>;
+};
+
+function formatSyncDate(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function readMetric(
+  source: Record<string, unknown> | null | undefined,
+  keys: string[]
+) {
+  if (!source) return 0;
+
+  for (const key of keys) {
+    const value = source[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (
+      typeof value === "string" &&
+      value.trim() &&
+      Number.isFinite(Number(value))
+    ) {
+      return Number(value);
+    }
+  }
+
+  return 0;
+}
+
+function syncMetric(run: SyncRun | null, keys: string[]) {
+  if (!run) return 0;
+
+  const direct = readMetric(run, keys);
+  if (direct !== 0) return direct;
+
+  if (
+    run.metadata &&
+    typeof run.metadata === "object" &&
+    !Array.isArray(run.metadata)
+  ) {
+    return readMetric(run.metadata, keys);
+  }
+
+  return 0;
+}
 
 type Props = {
   candidateId: string;
@@ -121,7 +202,7 @@ function statusStyle(
 export default function CandidatePublicData({
   candidateId,
 }: Props) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [providers, setProviders] = useState<Provider[]>([]);
   const [identities, setIdentities] = useState<
@@ -141,6 +222,12 @@ export default function CandidatePublicData({
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const [lastCamaraRun, setLastCamaraRun] =
+    useState<SyncRun | null>(null);
+  const [syncingCamara, setSyncingCamara] = useState(false);
+  const [lastSyncResult, setLastSyncResult] =
+    useState<Record<string, unknown> | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -216,6 +303,38 @@ export default function CandidatePublicData({
 
       setProviders(providerList);
       setIdentities(joined);
+
+      const camaraProvider =
+        providerList.find(
+          (provider) =>
+            provider.code === "camara_dados_abertos"
+        ) || null;
+
+      if (camaraProvider) {
+        const { data: runData, error: runError } =
+          await supabase
+            .from("mfb_public_data_sync_runs")
+            .select("*")
+            .eq("candidate_id", candidateId)
+            .eq("provider_id", camaraProvider.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (runError) {
+          console.error(
+            "Erro ao carregar última sincronização da Câmara:",
+            runError
+          );
+          setLastCamaraRun(null);
+        } else {
+          setLastCamaraRun(
+            (runData || null) as SyncRun | null
+          );
+        }
+      } else {
+        setLastCamaraRun(null);
+      }
     } catch (err: any) {
       setError(
         err?.message ||
@@ -376,6 +495,150 @@ export default function CandidatePublicData({
     }
   }
 
+  const camaraProvider =
+    providers.find(
+      (provider) =>
+        provider.code === "camara_dados_abertos"
+    ) || null;
+
+  const camaraIdentity =
+    identities.find(
+      (identity) =>
+        identity.provider?.code ===
+        "camara_dados_abertos"
+    ) || null;
+
+  async function handleCamaraSync() {
+    if (!camaraIdentity) {
+      setError(
+        "Vincule primeiro a identidade do candidato na Câmara dos Deputados."
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Executar a sincronização manual com a Câmara dos Deputados? Os registros coletados irão para a fila administrativa e não serão publicados automaticamente."
+    );
+
+    if (!confirmed) return;
+
+    setSyncingCamara(true);
+    setError(null);
+    setSuccess(null);
+    setLastSyncResult(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/public-data/camara/sync/${candidateId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            externalIdentityId: camaraIdentity.id,
+            deputadoId: camaraIdentity.external_id,
+          }),
+        }
+      );
+
+      const raw = await response.text();
+      let payload: SyncResponse = {};
+
+      if (raw) {
+        try {
+          payload = JSON.parse(raw) as SyncResponse;
+        } catch {
+          payload = { error: raw };
+        }
+      }
+
+      if (!response.ok || payload.ok === false) {
+        throw new Error(
+          payload.error ||
+            payload.detail ||
+            "Não foi possível sincronizar os dados da Câmara."
+        );
+      }
+
+      setLastSyncResult(payload.result || null);
+      setSuccess(
+        payload.message ||
+          "Sincronização da Câmara concluída. Os dados permanecem sujeitos à revisão administrativa."
+      );
+
+      await loadData();
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          "Não foi possível sincronizar os dados da Câmara."
+      );
+    } finally {
+      setSyncingCamara(false);
+    }
+  }
+
+  const collected = lastSyncResult
+    ? readMetric(lastSyncResult, [
+        "collected",
+        "recordsFound",
+        "records_found",
+        "recordsCollected",
+        "records_collected",
+      ])
+    : syncMetric(lastCamaraRun, [
+        "records_found",
+        "records_collected",
+        "collected",
+      ]);
+
+  const inserted = lastSyncResult
+    ? readMetric(lastSyncResult, [
+        "inserted",
+        "recordsInserted",
+        "records_inserted",
+        "recordsImported",
+        "records_imported",
+      ])
+    : syncMetric(lastCamaraRun, [
+        "records_inserted",
+        "records_imported",
+        "inserted",
+      ]);
+
+  const updated = lastSyncResult
+    ? readMetric(lastSyncResult, [
+        "updated",
+        "recordsUpdated",
+        "records_updated",
+      ])
+    : syncMetric(lastCamaraRun, [
+        "records_updated",
+        "updated",
+      ]);
+
+  const skipped = lastSyncResult
+    ? readMetric(lastSyncResult, [
+        "skipped",
+        "recordsSkipped",
+        "records_skipped",
+      ])
+    : syncMetric(lastCamaraRun, [
+        "records_skipped",
+        "skipped",
+      ]);
+
+  const errors = lastSyncResult
+    ? readMetric(lastSyncResult, [
+        "errors",
+        "recordsErrors",
+        "records_errors",
+      ])
+    : syncMetric(lastCamaraRun, [
+        "records_errors",
+        "errors",
+      ]);
+
   if (loading) {
     return (
       <div
@@ -499,6 +762,204 @@ export default function CandidatePublicData({
           <span>{success}</span>
         </div>
       )}
+
+      <section
+        style={{
+          padding: 20,
+          border: "1px solid #e4e7ec",
+          borderRadius: 14,
+          background: "#fff",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 16,
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <h3 style={{ margin: 0, fontSize: 18 }}>
+              Câmara dos Deputados
+            </h3>
+            <p
+              style={{
+                margin: "5px 0 0",
+                color: "#667085",
+                fontSize: 13,
+                lineHeight: 1.6,
+                maxWidth: 720,
+              }}
+            >
+              Sincronização manual da fonte oficial vinculada.
+              Os registros recebidos permanecem na fila de
+              conferência antes de eventual incorporação à
+              Atuação Pública.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={
+              syncingCamara ||
+              !camaraProvider ||
+              !camaraIdentity
+            }
+            onClick={() => void handleCamaraSync()}
+            title={
+              camaraIdentity
+                ? "Executar sincronização manual da Câmara"
+                : "Vincule primeiro a identidade da Câmara"
+            }
+          >
+            {syncingCamara ? (
+              <>
+                <Loader2 size={16} />
+                Sincronizando...
+              </>
+            ) : (
+              <>
+                <Play size={16} />
+                Sincronizar Câmara
+              </>
+            )}
+          </button>
+        </div>
+
+        {!camaraProvider ? (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 14,
+              borderRadius: 10,
+              border: "1px solid #fedf89",
+              background: "#fffaeb",
+              color: "#b54708",
+              fontSize: 13,
+            }}
+          >
+            O provedor da Câmara não está ativo na Central
+            de Dados Públicos.
+          </div>
+        ) : !camaraIdentity ? (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 14,
+              borderRadius: 10,
+              border: "1px dashed #d0d5dd",
+              background: "#fcfcfd",
+              color: "#475467",
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
+            Para habilitar a sincronização, crie abaixo um
+            vínculo com <strong>{camaraProvider.name}</strong>.
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                marginTop: 16,
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 10,
+              }}
+            >
+              <div style={{ padding: 13, border: "1px solid #e4e7ec", borderRadius: 10, background: "#f9fafb" }}>
+                <div style={{ color: "#667085", fontSize: 12, fontWeight: 700 }}>
+                  ID na Câmara
+                </div>
+                <div style={{ marginTop: 4, color: "#101828", fontWeight: 800 }}>
+                  {camaraIdentity.external_id}
+                </div>
+              </div>
+
+              <div style={{ padding: 13, border: "1px solid #e4e7ec", borderRadius: 10, background: "#f9fafb" }}>
+                <div style={{ color: "#667085", fontSize: 12, fontWeight: 700 }}>
+                  Última execução
+                </div>
+                <div style={{ marginTop: 4, color: "#101828", fontWeight: 800 }}>
+                  {formatSyncDate(
+                    lastCamaraRun?.finished_at ||
+                      lastCamaraRun?.started_at ||
+                      lastCamaraRun?.created_at
+                  )}
+                </div>
+              </div>
+
+              <div style={{ padding: 13, border: "1px solid #e4e7ec", borderRadius: 10, background: "#f9fafb" }}>
+                <div style={{ color: "#667085", fontSize: 12, fontWeight: 700 }}>
+                  Situação
+                </div>
+                <div style={{ marginTop: 4, color: "#101828", fontWeight: 800 }}>
+                  {lastCamaraRun?.status || "Ainda não executada"}
+                </div>
+              </div>
+            </div>
+
+            {(lastCamaraRun || lastSyncResult) && (
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(120px, 1fr))",
+                  gap: 10,
+                }}
+              >
+                {[
+                  ["Coletados", collected],
+                  ["Inseridos", inserted],
+                  ["Atualizados", updated],
+                  ["Ignorados", skipped],
+                  ["Erros", errors],
+                ].map(([label, value]) => (
+                  <div
+                    key={String(label)}
+                    style={{
+                      padding: 12,
+                      border: "1px solid #e4e7ec",
+                      borderRadius: 10,
+                      background: "#fff",
+                    }}
+                  >
+                    <div style={{ color: "#667085", fontSize: 12 }}>
+                      {label}
+                    </div>
+                    <div style={{ marginTop: 3, color: "#101828", fontSize: 20, fontWeight: 900 }}>
+                      {String(value)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {lastCamaraRun?.error_message && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: 12,
+                  borderRadius: 10,
+                  border: "1px solid #fecdca",
+                  background: "#fef3f2",
+                  color: "#b42318",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                }}
+              >
+                <strong>Última ocorrência:</strong>{" "}
+                {lastCamaraRun.error_message}
+              </div>
+            )}
+          </>
+        )}
+      </section>
 
       <div>
         <div
@@ -1036,13 +1497,13 @@ export default function CandidatePublicData({
             color: "#344054",
           }}
         >
-          Próxima fase:
+          Fluxo de segurança editorial:
         </strong>{" "}
-        depois que as identidades oficiais estiverem vinculadas,
-        este módulo poderá solicitar dados às fontes integradas.
-        Os registros recebidos irão primeiro para a fila de
-        conferência administrativa antes de eventual incorporação
-        à Atuação Pública.
+        sincronizar uma fonte não publica dados. Os registros
+        recebidos entram primeiro na fila de conferência
+        administrativa. A incorporação à Atuação Pública é uma
+        etapa separada e a exibição pública continua dependente
+        das regras de revisão e verificação.
       </div>
     </div>
   );
