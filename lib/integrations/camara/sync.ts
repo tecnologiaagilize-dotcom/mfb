@@ -1592,8 +1592,8 @@ async function collectCamaraRecords(
 
         records.push(
           normalizeVotoNominal(
-            votacao,
             voto,
+            votacao,
             context
           )
         );
