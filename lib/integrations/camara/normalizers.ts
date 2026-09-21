@@ -1264,7 +1264,8 @@ export function normalizeProposicao(
           ? `Autoria informada: ${autores.join(", ")}`
           : null,
 
-      authors,
+      authors:
+        autores,
 
       subject_areas:
         uniqueStrings(
