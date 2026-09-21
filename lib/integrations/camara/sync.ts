@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createHash } from "node:crypto";
 
 import {
   CAMARA_PROVIDER_CODE,
@@ -85,6 +86,8 @@ type QueueExistingRow = {
   review_status: string;
   imported_table: string | null;
   imported_record_id: string | null;
+  source_change_pending: boolean | null;
+  latest_source_version_id: string | null;
 };
 
 type QueueInsertResult = {
@@ -571,6 +574,281 @@ async function finishSyncRun(
 }
 
 /* ============================================================
+   VERSIONAMENTO DA FONTE
+============================================================ */
+
+function stableJson(value: unknown): string {
+  if (
+    value === null ||
+    typeof value !== "object"
+  ) {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value
+      .map((item) => stableJson(item))
+      .join(",")}]`;
+  }
+
+  const record =
+    value as Record<string, unknown>;
+
+  const keys =
+    Object.keys(record).sort();
+
+  return `{${keys
+    .map(
+      (key) =>
+        `${JSON.stringify(key)}:${stableJson(
+          record[key]
+        )}`
+    )
+    .join(",")}}`;
+}
+
+function recordContentHash(
+  record: MfbNormalizedPublicRecord
+) {
+  /*
+   * O hash considera somente o conteúdo documental recebido
+   * da fonte. Metadados transitórios como normalized_at não
+   * entram no cálculo, evitando falsos positivos.
+   */
+  const comparable = {
+    record_type:
+      record.record_type,
+    external_id:
+      record.external_id,
+    external_url:
+      record.external_url,
+    title:
+      record.title,
+    summary:
+      record.summary,
+    occurred_at:
+      record.occurred_at,
+    raw_payload:
+      record.raw_payload,
+    normalized_payload:
+      record.normalized_payload,
+  };
+
+  return createHash("sha256")
+    .update(
+      stableJson(comparable),
+      "utf8"
+    )
+    .digest("hex");
+}
+
+type LatestVersionRow = {
+  id: string;
+  content_hash: string;
+  review_status: string;
+};
+
+async function getLatestSourceVersion(
+  supabase: SupabaseClient,
+  queueItemId: string
+): Promise<LatestVersionRow | null> {
+  const { data, error } =
+    await supabase
+      .from(
+        "mfb_public_data_record_versions"
+      )
+      .select(
+        "id, content_hash, review_status"
+      )
+      .eq(
+        "queue_item_id",
+        queueItemId
+      )
+      .order(
+        "created_at",
+        { ascending: false }
+      )
+      .limit(1)
+      .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Erro ao consultar histórico de versões: ${error.message}`
+    );
+  }
+
+  return data as
+    | LatestVersionRow
+    | null;
+}
+
+async function registerSourceVersion(
+  supabase: SupabaseClient,
+  params: {
+    queueItemId: string;
+    providerId: string;
+    syncRunId: string;
+    candidateId: string;
+    record: MfbNormalizedPublicRecord;
+    forcePendingReview?: boolean;
+  }
+): Promise<{
+  versionId: string | null;
+  changed: boolean;
+  created: boolean;
+}> {
+  const contentHash =
+    recordContentHash(
+      params.record
+    );
+
+  const previous =
+    await getLatestSourceVersion(
+      supabase,
+      params.queueItemId
+    );
+
+  if (
+    previous?.content_hash ===
+    contentHash
+  ) {
+    return {
+      versionId:
+        previous.id,
+      changed: false,
+      created: false,
+    };
+  }
+
+  const changed =
+    Boolean(previous);
+
+  const reviewStatus =
+    params.forcePendingReview &&
+    changed
+      ? "pending_review"
+      : "recorded";
+
+  const { data, error } =
+    await supabase
+      .from(
+        "mfb_public_data_record_versions"
+      )
+      .insert({
+        queue_item_id:
+          params.queueItemId,
+
+        provider_id:
+          params.providerId,
+
+        sync_run_id:
+          params.syncRunId,
+
+        candidate_id:
+          params.candidateId,
+
+        record_type:
+          params.record.record_type,
+
+        external_id:
+          params.record.external_id,
+
+        external_url:
+          params.record.external_url,
+
+        title:
+          params.record.title,
+
+        summary:
+          params.record.summary,
+
+        occurred_at:
+          params.record.occurred_at,
+
+        raw_payload:
+          params.record.raw_payload,
+
+        normalized_payload: {
+          ...params.record
+            .normalized_payload,
+
+          _mfb_metadata:
+            params.record.metadata,
+        },
+
+        content_hash:
+          contentHash,
+
+        change_type:
+          changed
+            ? "changed"
+            : "snapshot",
+
+        review_status:
+          reviewStatus,
+
+        compared_to_version_id:
+          previous?.id ||
+          null,
+      })
+      .select("id")
+      .single();
+
+  if (error || !data) {
+    /*
+     * Uma corrida entre duas sincronizações pode atingir o
+     * índice único queue_item_id + content_hash. Nesse caso
+     * recuperamos a versão já criada e seguimos normalmente.
+     */
+    const {
+      data: duplicate,
+      error: duplicateError,
+    } = await supabase
+      .from(
+        "mfb_public_data_record_versions"
+      )
+      .select("id")
+      .eq(
+        "queue_item_id",
+        params.queueItemId
+      )
+      .eq(
+        "content_hash",
+        contentHash
+      )
+      .limit(1)
+      .maybeSingle();
+
+    if (
+      duplicateError ||
+      !duplicate
+    ) {
+      throw new Error(
+        `Erro ao registrar versão da fonte: ${
+          error?.message ||
+          duplicateError?.message ||
+          "erro desconhecido"
+        }`
+      );
+    }
+
+    return {
+      versionId:
+        String(duplicate.id),
+      changed,
+      created: false,
+    };
+  }
+
+  return {
+    versionId:
+      String(data.id),
+    changed,
+    created: true,
+  };
+}
+
+/* ============================================================
    FILA
 ============================================================ */
 
@@ -596,7 +874,9 @@ async function findExistingQueueItem(
         id,
         review_status,
         imported_table,
-        imported_record_id
+        imported_record_id,
+        source_change_pending,
+        latest_source_version_id
       `
     )
     .eq(
@@ -674,6 +954,109 @@ async function queueRecord(
       "imported" ||
     existing?.imported_record_id
   ) {
+    const version =
+      await registerSourceVersion(
+        supabase,
+        {
+          queueItemId:
+            existing.id,
+
+          providerId:
+            params.providerId,
+
+          syncRunId:
+            params.syncRunId,
+
+          candidateId:
+            params.candidateId,
+
+          record:
+            params.record,
+
+          forcePendingReview:
+            true,
+        }
+      );
+
+    if (
+      version.versionId &&
+      version.changed
+    ) {
+      const {
+        error: pendingError,
+      } = await supabase
+        .from(
+          "mfb_public_data_import_queue"
+        )
+        .update({
+          source_change_pending:
+            true,
+
+          latest_source_version_id:
+            version.versionId,
+        })
+        .eq(
+          "id",
+          existing.id
+        );
+
+      if (pendingError) {
+        throw new Error(
+          `A alteração da fonte foi registrada, mas não foi possível marcar a pendência administrativa: ${pendingError.message}`
+        );
+      }
+
+      if (version.created) {
+        await supabase
+          .from(
+            "mfb_public_data_import_events"
+          )
+          .insert({
+            queue_item_id:
+              existing.id,
+
+            event_type:
+              "source_changed",
+
+            previous_status:
+              "imported",
+
+            new_status:
+              "imported",
+
+            notes:
+              "A fonte oficial apresentou conteúdo diferente da última versão registrada. O conteúdo incorporado foi preservado e a alteração aguarda revisão administrativa.",
+
+            metadata: {
+              provider_code:
+                CAMARA_PROVIDER_CODE,
+
+              sync_run_id:
+                params.syncRunId,
+
+              source_version_id:
+                version.versionId,
+            },
+          });
+      }
+    } else if (
+      version.versionId &&
+      !existing.latest_source_version_id
+    ) {
+      await supabase
+        .from(
+          "mfb_public_data_import_queue"
+        )
+        .update({
+          latest_source_version_id:
+            version.versionId,
+        })
+        .eq(
+          "id",
+          existing.id
+        );
+    }
+
     result.skipped = 1;
     return result;
   }
@@ -752,6 +1135,42 @@ async function queueRecord(
       return result;
     }
 
+    const version =
+      await registerSourceVersion(
+        supabase,
+        {
+          queueItemId:
+            existing.id,
+
+          providerId:
+            params.providerId,
+
+          syncRunId:
+            params.syncRunId,
+
+          candidateId:
+            params.candidateId,
+
+          record:
+            params.record,
+        }
+      );
+
+    if (version.versionId) {
+      await supabase
+        .from(
+          "mfb_public_data_import_queue"
+        )
+        .update({
+          latest_source_version_id:
+            version.versionId,
+        })
+        .eq(
+          "id",
+          existing.id
+        );
+    }
+
     result.updated = 1;
     return result;
   }
@@ -775,6 +1194,42 @@ async function queueRecord(
   if (error || !data) {
     result.errors = 1;
     return result;
+  }
+
+  const initialVersion =
+    await registerSourceVersion(
+      supabase,
+      {
+        queueItemId:
+          String(data.id),
+
+        providerId:
+          params.providerId,
+
+        syncRunId:
+          params.syncRunId,
+
+        candidateId:
+          params.candidateId,
+
+        record:
+          params.record,
+      }
+    );
+
+  if (initialVersion.versionId) {
+    await supabase
+      .from(
+        "mfb_public_data_import_queue"
+      )
+      .update({
+        latest_source_version_id:
+          initialVersion.versionId,
+      })
+      .eq(
+        "id",
+        data.id
+      );
   }
 
   /*
