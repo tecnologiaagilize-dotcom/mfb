@@ -6,6 +6,7 @@ import CandidateInviteManager from "@/components/admin/CandidateInviteManager";
 import CandidateOffices from "@/components/admin/CandidateOffices";
 import CandidatePublicActivity from "@/components/admin/CandidatePublicActivity";
 import CandidateSources from "@/components/admin/CandidateSources";
+import CandidatePublicData from "@/components/admin/CandidatePublicData";
 import CandidateCompletenessPanel from "@/components/admin/CandidateCompletenessPanel";
 import CandidateReviewPanel from "@/components/admin/CandidateReviewPanel";
 import CandidateDangerZone from "@/components/admin/CandidateDangerZone";
@@ -138,10 +139,10 @@ export default async function CandidateEditPage({
     notFound();
   }
 
- const publicHref =
-  candidate.slug
-    ? `/candidato/${candidate.slug}`
-    : null;
+  const publicHref =
+    candidate.slug
+      ? `/candidato/${candidate.slug}`
+      : null;
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -316,11 +317,11 @@ export default async function CandidateEditPage({
           <section>
             <SectionHeader
               number={6}
-              title="Completude documental"
-              description="Checklist operacional do preenchimento e da documentação disponível no cadastro."
+              title="Dados Públicos"
+              description="Vincule o candidato aos identificadores utilizados por fontes públicas e oficiais para futuras integrações de dados."
             />
 
-            <CandidateCompletenessPanel
+            <CandidatePublicData
               candidateId={
                 candidate.id
               }
@@ -332,6 +333,22 @@ export default async function CandidateEditPage({
           <section>
             <SectionHeader
               number={7}
+              title="Completude documental"
+              description="Checklist operacional do preenchimento e da documentação disponível no cadastro."
+            />
+
+            <CandidateCompletenessPanel
+              candidateId={
+                candidate.id
+              }
+            />
+          </section>
+
+          {/* 8 */}
+
+          <section>
+            <SectionHeader
+              number={8}
               title="Revisão e publicação"
               description="Controle separadamente o estágio de revisão editorial e a visibilidade pública deste cadastro."
             />
@@ -351,11 +368,11 @@ export default async function CandidateEditPage({
             />
           </section>
 
-          {/* 8 */}
+          {/* 9 */}
 
           <section>
             <SectionHeader
-              number={8}
+              number={9}
               title="Administração"
               description="Operações administrativas relacionadas ao registro deste candidato."
             />
