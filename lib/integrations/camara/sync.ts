@@ -43,6 +43,26 @@ type SyncOptions = {
   stateUf?: string | null;
 };
 
+type IncrementalWindow = {
+  mode: "initial" | "incremental";
+  previousFinishedAt: string | null;
+  dataInicio: string | null;
+  dataFim: string;
+  overlapDays: number;
+};
+
+const INCREMENTAL_OVERLAP_DAYS = 3;
+
+function isoDate(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function subtractDays(value: Date, days: number) {
+  const copy = new Date(value);
+  copy.setUTCDate(copy.getUTCDate() - days);
+  return copy;
+}
+
 type ProviderRow = {
   id: string;
   code: string;
@@ -294,10 +314,98 @@ async function getExternalIdentity(
    SYNC RUN
 ============================================================ */
 
-async function createSyncRun(
+async function getIncrementalWindow(
   supabase: SupabaseClient,
   providerId: string,
   candidateId: string
+): Promise<IncrementalWindow> {
+  const { data, error } = await supabase
+    .from("mfb_public_data_sync_runs")
+    .select("finished_at, created_at, status")
+    .eq("provider_id", providerId)
+    .eq("candidate_id", candidateId)
+    .in("status", [
+      "completed",
+      "completed_with_errors",
+    ])
+    .order("finished_at", {
+      ascending: false,
+      nullsFirst: false,
+    })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    /*
+     * A sincronização continua em modo inicial caso não seja
+     * possível recuperar o histórico. A deduplicação da fila
+     * continua protegendo contra duplicidades.
+     */
+    console.error(
+      "Erro ao localizar sincronização anterior da Câmara:",
+      error
+    );
+
+    return {
+      mode: "initial",
+      previousFinishedAt: null,
+      dataInicio: null,
+      dataFim: isoDate(new Date()),
+      overlapDays: INCREMENTAL_OVERLAP_DAYS,
+    };
+  }
+
+  const previousFinishedAt =
+    data?.finished_at ||
+    data?.created_at ||
+    null;
+
+  if (!previousFinishedAt) {
+    return {
+      mode: "initial",
+      previousFinishedAt: null,
+      dataInicio: null,
+      dataFim: isoDate(new Date()),
+      overlapDays: INCREMENTAL_OVERLAP_DAYS,
+    };
+  }
+
+  const previousDate =
+    new Date(previousFinishedAt);
+
+  if (
+    Number.isNaN(
+      previousDate.getTime()
+    )
+  ) {
+    return {
+      mode: "initial",
+      previousFinishedAt: null,
+      dataInicio: null,
+      dataFim: isoDate(new Date()),
+      overlapDays: INCREMENTAL_OVERLAP_DAYS,
+    };
+  }
+
+  return {
+    mode: "incremental",
+    previousFinishedAt,
+    dataInicio: isoDate(
+      subtractDays(
+        previousDate,
+        INCREMENTAL_OVERLAP_DAYS
+      )
+    ),
+    dataFim: isoDate(new Date()),
+    overlapDays: INCREMENTAL_OVERLAP_DAYS,
+  };
+}
+
+async function createSyncRun(
+  supabase: SupabaseClient,
+  providerId: string,
+  candidateId: string,
+  window: IncrementalWindow
 ) {
   const {
     data,
@@ -328,6 +436,21 @@ async function createSyncRun(
 
         source:
           "manual_admin_sync",
+
+        sync_mode:
+          window.mode,
+
+        previous_finished_at:
+          window.previousFinishedAt,
+
+        data_inicio:
+          window.dataInicio,
+
+        data_fim:
+          window.dataFim,
+
+        overlap_days:
+          window.overlapDays,
       },
     })
     .select("id")
@@ -359,7 +482,8 @@ async function finishSyncRun(
     skipped: number;
     errors: number;
   },
-  errorMessages: string[]
+  errorMessages: string[],
+  window?: IncrementalWindow
 ) {
   const payload = {
     status,
@@ -404,6 +528,22 @@ async function finishSyncRun(
 
       errors:
         counters.errors,
+
+      sync_mode:
+        window?.mode || null,
+
+      previous_finished_at:
+        window?.previousFinishedAt || null,
+
+      data_inicio:
+        window?.dataInicio || null,
+
+      data_fim:
+        window?.dataFim || null,
+
+      overlap_days:
+        window?.overlapDays ||
+        INCREMENTAL_OVERLAP_DAYS,
     },
   };
 
@@ -680,7 +820,8 @@ async function queueRecord(
 
 async function collectCamaraRecords(
   deputadoId: string,
-  context: CamaraNormalizationContext
+  context: CamaraNormalizationContext,
+  window: IncrementalWindow
 ): Promise<{
   records: MfbNormalizedPublicRecord[];
   errors: string[];
@@ -815,6 +956,16 @@ async function collectCamaraRecords(
         {
           idDeputadoAutor:
             deputadoId,
+
+          ...(window.dataInicio
+            ? {
+                dataInicio:
+                  window.dataInicio,
+                dataFim:
+                  window.dataFim,
+              }
+            : {}),
+
           ordem:
             "DESC",
           ordenarPor:
@@ -921,6 +1072,15 @@ async function collectCamaraRecords(
     const votacoes =
       await buscarTodasVotacoes(
         {
+          ...(window.dataInicio
+            ? {
+                dataInicio:
+                  window.dataInicio,
+                dataFim:
+                  window.dataFim,
+              }
+            : {}),
+
           ordem:
             "DESC",
           ordenarPor:
@@ -1051,11 +1211,19 @@ export async function syncCamaraCandidate(
     );
   }
 
+  const incrementalWindow =
+    await getIncrementalWindow(
+      supabase,
+      provider.id,
+      options.candidateId
+    );
+
   const syncRunId =
     await createSyncRun(
       supabase,
       provider.id,
-      options.candidateId
+      options.candidateId,
+      incrementalWindow
     );
 
   const counters = {
@@ -1091,7 +1259,8 @@ export async function syncCamaraCandidate(
     const collection =
       await collectCamaraRecords(
         deputadoId,
-        context
+        context,
+        incrementalWindow
       );
 
     counters.collected =
@@ -1163,7 +1332,8 @@ export async function syncCamaraCandidate(
       syncRunId,
       finalStatus,
       counters,
-      errorMessages
+      errorMessages,
+      incrementalWindow
     );
 
     return {
@@ -1196,7 +1366,8 @@ export async function syncCamaraCandidate(
       syncRunId,
       "failed",
       counters,
-      errorMessages
+      errorMessages,
+      incrementalWindow
     );
 
     throw error;
