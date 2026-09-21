@@ -182,9 +182,7 @@ export default function CandidateForm({
     verified_at: initial?.verified_at
       ? initial.verified_at.substring(0, 10)
       : "",
-
-    status: initial?.status ?? "draft",
-  });
+});
 
   const [saving, setSaving] =
     useState(false);
@@ -503,6 +501,8 @@ export default function CandidateForm({
           .from("candidates")
           .insert({
             ...payload,
+            // Publicação é controlada exclusivamente pelo painel de revisão/publicação.
+            // Novos candidatos sempre começam como rascunho.
             status: "draft",
           })
           .select("id")
@@ -913,41 +913,7 @@ export default function CandidateForm({
                   </FieldHelp>
                 </label>
 
-                <label>
-                  <span
-                    style={labelStyle}
-                  >
-                    Publicação
-                  </span>
 
-                  <select
-                    className="field"
-                    value={
-                      form.status
-                    }
-                    onChange={(e) =>
-                      set(
-                        "status",
-                        e.target.value
-                      )
-                    }
-                  >
-                    <option value="draft">
-                      Rascunho
-                    </option>
-
-                    <option value="published">
-                      Publicado
-                    </option>
-                  </select>
-
-                  <FieldHelp>
-                    Publicar torna o
-                    cadastro disponível
-                    nas áreas públicas
-                    configuradas.
-                  </FieldHelp>
-                </label>
               </>
             )}
 
