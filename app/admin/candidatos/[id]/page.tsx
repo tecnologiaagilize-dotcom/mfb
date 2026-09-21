@@ -1,566 +1,312 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { createClient } from "@/lib/supabase/server";
-
 import CandidateForm from "@/components/admin/CandidateForm";
-import CandidateOffices from "@/components/admin/CandidateOffices";
-import CandidateSources from "@/components/admin/CandidateSources";
 import CandidateInviteManager from "@/components/admin/CandidateInviteManager";
+import CandidateOffices from "@/components/admin/CandidateOffices";
+import CandidatePublicActivity from "@/components/admin/CandidatePublicActivity";
+import CandidateSources from "@/components/admin/CandidateSources";
 import CandidateDangerZone from "@/components/admin/CandidateDangerZone";
 
-export const dynamic = "force-dynamic";
+import { createClient } from "@/lib/supabase/server";
 
-function StatusBadge({
-  children,
-  background,
-  color,
+type PageProps = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+const reviewLabels: Record<string, string> = {
+  draft: "Rascunho",
+  awaiting_completion: "Aguardando preenchimento",
+  in_review: "Em revisão",
+  approved: "Aprovado",
+};
+
+function ReviewBadge({
+  status,
 }: {
-  children: React.ReactNode;
-  background: string;
-  color: string;
+  status?: string | null;
 }) {
+  const value = status || "draft";
+
+  const classes: Record<string, string> = {
+    draft: "border-slate-200 bg-slate-100 text-slate-700",
+    awaiting_completion:
+      "border-amber-200 bg-amber-50 text-amber-700",
+    in_review:
+      "border-blue-200 bg-blue-50 text-blue-700",
+    approved:
+      "border-emerald-200 bg-emerald-50 text-emerald-700",
+  };
+
   return (
     <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "6px 10px",
-        borderRadius: 999,
-        background,
-        color,
-        fontSize: 12,
-        fontWeight: 800,
-      }}
+      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
+        classes[value] ||
+        "border-slate-200 bg-slate-100 text-slate-700"
+      }`}
     >
-      {children}
+      {reviewLabels[value] || value}
     </span>
   );
 }
 
-export default async function EditCandidatePage({
-  params,
+function PublicationBadge({
+  status,
 }: {
-  params: Promise<{ id: string }>;
+  status?: string | null;
 }) {
+  const published = status === "published";
+
+  return (
+    <span
+      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
+        published
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-slate-200 bg-slate-100 text-slate-600"
+      }`}
+    >
+      {published ? "Publicado" : "Não publicado"}
+    </span>
+  );
+}
+
+function SectionHeader({
+  number,
+  title,
+  description,
+}: {
+  number: number;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">
+          {number}
+        </span>
+
+        <h2 className="text-xl font-bold text-slate-900">
+          {title}
+        </h2>
+      </div>
+
+      <p className="ml-11 mt-1 text-sm leading-6 text-slate-500">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+export default async function CandidateEditPage({
+  params,
+}: PageProps) {
   const { id } = await params;
 
   const supabase = await createClient();
 
   const {
-    data: candidate,
-    error,
-  } = await supabase
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    notFound();
+  }
+
+  const { data: candidate, error } = await supabase
     .from("candidates")
     .select("*")
     .eq("id", id)
-    .maybeSingle();
+    .single();
 
   if (error || !candidate) {
-    return notFound();
+    notFound();
   }
 
-  const displayName =
-    candidate.ballot_name ||
-    candidate.name;
-
-  const reviewLabels: Record<
-    string,
-    string
-  > = {
-    draft: "Cadastro em rascunho",
-    awaiting_completion:
-      "Aguardando preenchimento",
-    in_review: "Dados em revisão",
-    approved: "Dados aprovados",
-  };
-
-  const reviewLabel =
-    reviewLabels[
-      candidate.review_status
-    ] || "Cadastro em rascunho";
-
-  const isPublished =
-    candidate.status === "published";
+  const publicHref = candidate.slug
+    ? `/candidatos/${candidate.slug}`
+    : null;
 
   return (
-    <main className="section">
-      <div
-        className="container"
-        style={{
-          maxWidth: 1100,
-        }}
-      >
-        {/* ===================================================
+    <main className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* =====================================================
             CABEÇALHO
-        =================================================== */}
+        ===================================================== */}
 
-        <div
-          style={{
-            marginBottom: 26,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent:
-                "space-between",
-              alignItems: "flex-start",
-              flexWrap: "wrap",
-              gap: 18,
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontSize: 14,
-                  color: "#667085",
-                  marginBottom: 8,
-                }}
+        <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <Link
+                href="/admin/candidatos"
+                className="text-sm font-semibold text-emerald-700 hover:text-emerald-800"
               >
-                Central Administrativa
-                {" / "}
-                Apoiados
-                {" / "}
-                Editar
+                ← Voltar para candidatos
+              </Link>
+
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Administração do candidato
+                </p>
+
+                <h1 className="mt-1 break-words text-2xl font-bold text-slate-950 sm:text-3xl">
+                  {candidate.ballot_name ||
+                    candidate.name ||
+                    "Candidato"}
+                </h1>
+
+                {candidate.name &&
+                  candidate.ballot_name &&
+                  candidate.name !== candidate.ballot_name && (
+                    <p className="mt-1 text-sm text-slate-500">
+                      {candidate.name}
+                    </p>
+                  )}
               </div>
 
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize:
-                    "clamp(30px,5vw,42px)",
-                  color: "#101828",
-                }}
-              >
-                {displayName}
-              </h1>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <ReviewBadge
+                  status={candidate.review_status}
+                />
 
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 8,
-                  marginTop: 12,
-                }}
-              >
-                <StatusBadge
-                  background={
-                    isPublished
-                      ? "#ecfdf3"
-                      : "#f2f4f7"
-                  }
-                  color={
-                    isPublished
-                      ? "#027a48"
-                      : "#475467"
-                  }
-                >
-                  {isPublished
-                    ? "● Publicado"
-                    : "○ Rascunho"}
-                </StatusBadge>
+                <PublicationBadge
+                  status={candidate.status}
+                />
 
-                <StatusBadge
-                  background="#eff8ff"
-                  color="#175cd3"
-                >
-                  {reviewLabel}
-                </StatusBadge>
+                {candidate.cargo && (
+                  <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                    {candidate.cargo}
+                  </span>
+                )}
 
                 {candidate.party && (
-                  <StatusBadge
-                    background="#f9fafb"
-                    color="#344054"
-                  >
+                  <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
                     {candidate.party}
                     {candidate.number
                       ? ` • ${candidate.number}`
                       : ""}
-                  </StatusBadge>
+                  </span>
                 )}
               </div>
-
-              <p
-                style={{
-                  color: "#667085",
-                  margin: "12px 0 0",
-                }}
-              >
-                {candidate.cargo}
-
-                {candidate.city_name
-                  ? ` • ${candidate.city_name}`
-                  : ""}
-
-                {candidate.state_uf &&
-                candidate.state_uf !==
-                  "BR"
-                  ? ` • ${candidate.state_uf}`
-                  : candidate.state_uf ===
-                      "BR"
-                    ? " • Nacional"
-                    : ""}
-              </p>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 10,
-              }}
-            >
-              <Link
-                href="/admin/candidatos"
-                className="btn btn-secondary"
-              >
-                ← Candidatos
-              </Link>
-
-              {candidate.slug &&
-                isPublished && (
-                  <Link
-                    href={`/candidatos/${candidate.slug}`}
-                    target="_blank"
-                    className="btn btn-secondary"
-                  >
-                    Visualizar página ↗
-                  </Link>
-                )}
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {publicHref && (
+                <Link
+                  href={publicHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Ver página pública ↗
+                </Link>
+              )}
             </div>
           </div>
         </div>
 
-        {/* ===================================================
-            ORIENTAÇÃO
-        =================================================== */}
+        <div className="space-y-10">
+          {/* ===================================================
+              1. FICHA DO CANDIDATO
+          =================================================== */}
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit,minmax(220px,1fr))",
-            gap: 12,
-            marginBottom: 24,
-          }}
-        >
-          <div
-            style={{
-              padding: 16,
-              border:
-                "1px solid #e4e7ec",
-              borderRadius: 12,
-              background: "#fff",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 12,
-                color: "#667085",
-                fontWeight: 800,
-              }}
-            >
-              CADASTRO
-            </div>
+          <section>
+            <SectionHeader
+              number={1}
+              title="Ficha do candidato"
+              description="Dados de identificação, perfil, mídia, contatos e informações gerais."
+            />
 
-            <div
-              style={{
-                marginTop: 5,
-                fontWeight: 800,
-                color: "#101828",
-              }}
-            >
-              Editar informações
-            </div>
+            <CandidateForm initial={candidate} />
+          </section>
 
-            <div
-              style={{
-                marginTop: 4,
-                color: "#667085",
-                fontSize: 13,
-              }}
-            >
-              Identificação, perfil,
-              foto, contatos e fontes.
-            </div>
-          </div>
+          {/* ===================================================
+              2. PREENCHIMENTO EXTERNO
+          =================================================== */}
 
-          <div
-            style={{
-              padding: 16,
-              border:
-                "1px solid #e4e7ec",
-              borderRadius: 12,
-              background: "#fff",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 12,
-                color: "#667085",
-                fontWeight: 800,
-              }}
-            >
-              COLABORAÇÃO
-            </div>
+          <section>
+            <SectionHeader
+              number={2}
+              title="Preenchimento externo"
+              description="Envie um acesso temporário para que o próprio candidato ou sua equipe complemente as informações do cadastro."
+            />
 
-            <div
-              style={{
-                marginTop: 5,
-                fontWeight: 800,
-                color: "#101828",
-              }}
-            >
-              Preenchimento 48h
-            </div>
+            <CandidateInviteManager
+              candidateId={candidate.id}
+            />
+          </section>
 
-            <div
-              style={{
-                marginTop: 4,
-                color: "#667085",
-                fontSize: 13,
-              }}
-            >
-              Envie um acesso temporário
-              ao candidato ou assessoria.
-            </div>
-          </div>
+          {/* ===================================================
+              3. ATUAÇÃO PÚBLICA
+          =================================================== */}
 
-          <div
-            style={{
-              padding: 16,
-              border:
-                "1px solid #e4e7ec",
-              borderRadius: 12,
-              background: "#fff",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 12,
-                color: "#667085",
-                fontWeight: 800,
-              }}
-            >
-              VERIFICAÇÃO
-            </div>
+          <section>
+            <SectionHeader
+              number={3}
+              title="Atuação Pública"
+              description="Histórico factual e documentado de cargos, mandatos, proposições, votações, comissões, funções e entregas."
+            />
 
-            <div
-              style={{
-                marginTop: 5,
-                fontWeight: 800,
-                color: "#101828",
-              }}
-            >
-              Fontes documentais
-            </div>
+            <CandidatePublicActivity
+              candidateId={candidate.id}
+            />
+          </section>
 
-            <div
-              style={{
-                marginTop: 4,
-                color: "#667085",
-                fontSize: 13,
-              }}
-            >
-              Registre e confira as
-              fontes públicas do cadastro.
-            </div>
-          </div>
+          {/* ===================================================
+              4. PRESENÇA TERRITORIAL
+          =================================================== */}
+
+          <section>
+            <SectionHeader
+              number={4}
+              title="Presença territorial"
+              description="Cadastre comitês, escritórios, pontos de apoio e outras estruturas territoriais vinculadas ao candidato."
+            />
+
+            <CandidateOffices
+              candidateId={candidate.id}
+            />
+          </section>
+
+          {/* ===================================================
+              5. VERIFICAÇÃO
+          =================================================== */}
+
+          <section>
+            <SectionHeader
+              number={5}
+              title="Verificação"
+              description="Organize as fontes utilizadas para conferência e documentação das informações apresentadas no perfil."
+            />
+
+            <CandidateSources
+              candidateId={candidate.id}
+            />
+          </section>
+
+          {/* ===================================================
+              6. ADMINISTRAÇÃO
+          =================================================== */}
+
+          <section>
+            <SectionHeader
+              number={6}
+              title="Administração"
+              description="Operações administrativas relacionadas ao registro deste candidato."
+            />
+
+            <CandidateDangerZone
+              candidateId={candidate.id}
+              candidateName={
+                candidate.ballot_name ||
+                candidate.name ||
+                "Candidato"
+              }
+            />
+          </section>
         </div>
-
-        {/* ===================================================
-            1 — FICHA PRINCIPAL
-        =================================================== */}
-
-        <div
-          style={{
-            marginBottom: 12,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 900,
-              letterSpacing: 1,
-              color: "#157347",
-            }}
-          >
-            1 · FICHA DO CANDIDATO
-          </div>
-        </div>
-
-        <CandidateForm
-          initial={candidate}
-        />
-
-        {/* ===================================================
-            2 — PREENCHIMENTO COLABORATIVO
-        =================================================== */}
-
-        <div
-          style={{
-            marginTop: 42,
-            paddingTop: 30,
-            borderTop:
-              "1px solid #e4e7ec",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 900,
-              letterSpacing: 1,
-              color: "#157347",
-            }}
-          >
-            2 · PREENCHIMENTO EXTERNO
-          </div>
-
-          <h2
-            style={{
-              margin: "5px 0 0",
-              fontSize: 28,
-            }}
-          >
-            Candidato ou assessoria
-          </h2>
-
-          <p
-            style={{
-              margin: "7px 0 0",
-              color: "#667085",
-              maxWidth: 750,
-              lineHeight: 1.6,
-            }}
-          >
-            Gere um acesso temporário
-            para complementar informações
-            sem conceder acesso à Central
-            Administrativa.
-          </p>
-        </div>
-
-        <CandidateInviteManager
-          candidateId={candidate.id}
-        />
-
-        {/* ===================================================
-            3 — ESCRITÓRIOS
-        =================================================== */}
-
-        <div
-          style={{
-            marginTop: 42,
-            paddingTop: 30,
-            borderTop:
-              "1px solid #e4e7ec",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 900,
-              letterSpacing: 1,
-              color: "#157347",
-            }}
-          >
-            3 · PRESENÇA TERRITORIAL
-          </div>
-
-          <h2
-            style={{
-              margin: "5px 0 0",
-              fontSize: 28,
-            }}
-          >
-            Escritórios e pontos de
-            atendimento
-          </h2>
-        </div>
-
-        <CandidateOffices
-          candidateId={candidate.id}
-        />
-
-        {/* ===================================================
-            4 — FONTES DOCUMENTAIS
-        =================================================== */}
-
-        <div
-          style={{
-            marginTop: 42,
-            paddingTop: 30,
-            borderTop:
-              "1px solid #e4e7ec",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 900,
-              letterSpacing: 1,
-              color: "#157347",
-            }}
-          >
-            4 · VERIFICAÇÃO
-          </div>
-
-          <h2
-            style={{
-              margin: "5px 0 0",
-              fontSize: 28,
-            }}
-          >
-            Fontes documentais
-          </h2>
-
-          <p
-            style={{
-              margin: "7px 0 0",
-              color: "#667085",
-              maxWidth: 750,
-              lineHeight: 1.6,
-            }}
-          >
-            Cadastre as fontes utilizadas
-            para documentar e conferir as
-            informações apresentadas.
-          </p>
-        </div>
-
-        <CandidateSources
-          candidateId={candidate.id}
-        />
-
-        {/* ===================================================
-            5 — ZONA DE PERIGO
-        =================================================== */}
-
-        <div
-          style={{
-            marginTop: 42,
-            paddingTop: 30,
-            borderTop:
-              "1px solid #e4e7ec",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 900,
-              letterSpacing: 1,
-              color: "#b42318",
-            }}
-          >
-            5 · ADMINISTRAÇÃO
-          </div>
-        </div>
-
-        <CandidateDangerZone
-          candidateId={candidate.id}
-          candidateName={displayName}
-        />
       </div>
     </main>
   );
