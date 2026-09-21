@@ -6,6 +6,12 @@ import {
   obterHistoricoDeputado,
   obterMandatosExternos,
   obterOrgaosDeputado,
+  buscarTodasProposicoes,
+  obterProposicao,
+  obterAutoresProposicao,
+  obterTemasProposicao,
+  buscarTodasVotacoes,
+  obterVotosVotacao,
 } from "./client";
 
 import {
@@ -13,6 +19,9 @@ import {
   normalizeHistoricoList,
   normalizeMandatosExternosList,
   normalizeOrgaosList,
+  normalizeProposicao,
+  normalizeVotoNominal,
+  findVoteForDeputado,
   validateNormalizedRecord,
   type CamaraNormalizationContext,
   type MfbNormalizedPublicRecord,
@@ -788,6 +797,202 @@ async function collectCamaraRecords(
   } catch (error) {
     errors.push(
       `Órgãos: ${errorMessage(
+        error
+      )}`
+    );
+  }
+
+  /*
+   * PROPOSIÇÕES
+   *
+   * A API da Câmara permite filtrar proposições por autor.
+   * Limitamos a coleta para evitar uma sincronização
+   * administrativa excessivamente longa.
+   */
+  try {
+    const proposicoes =
+      await buscarTodasProposicoes(
+        {
+          idDeputadoAutor:
+            deputadoId,
+          ordem:
+            "DESC",
+          ordenarPor:
+            "id",
+        },
+        {
+          maxPages: 10,
+          maxRecords: 500,
+        }
+      );
+
+    for (const proposicao of proposicoes) {
+      try {
+        const proposicaoId =
+          proposicao?.id;
+
+        if (!proposicaoId) {
+          continue;
+        }
+
+        const [
+          detalheResult,
+          autoresResult,
+          temasResult,
+        ] = await Promise.allSettled([
+          obterProposicao(
+            proposicaoId
+          ),
+          obterAutoresProposicao(
+            proposicaoId
+          ),
+          obterTemasProposicao(
+            proposicaoId
+          ),
+        ]);
+
+        const detalhe =
+          detalheResult.status ===
+          "fulfilled"
+            ? detalheResult.value
+                ?.dados
+            : proposicao;
+
+        const autores =
+          autoresResult.status ===
+            "fulfilled" &&
+          Array.isArray(
+            autoresResult.value
+              ?.dados
+          )
+            ? autoresResult.value
+                .dados
+            : [];
+
+        const temas =
+          temasResult.status ===
+            "fulfilled" &&
+          Array.isArray(
+            temasResult.value
+              ?.dados
+          )
+            ? temasResult.value
+                .dados
+            : [];
+
+        records.push(
+          normalizeProposicao(
+            detalhe ||
+              proposicao,
+            {
+              authors: autores,
+              themes: temas,
+            }
+          )
+        );
+      } catch (error) {
+        errors.push(
+          `Proposição ${String(
+            proposicao?.id ||
+              "sem-id"
+          )}: ${errorMessage(
+            error
+          )}`
+        );
+      }
+    }
+  } catch (error) {
+    errors.push(
+      `Proposições: ${errorMessage(
+        error
+      )}`
+    );
+  }
+
+  /*
+   * VOTAÇÕES NOMINAIS
+   *
+   * A Câmara não fornece, neste cliente, uma consulta
+   * direta "votações por deputado". Por isso coletamos
+   * votações recentes em janela limitada e, em cada
+   * votação, verificamos se há voto nominal do deputado.
+   */
+  try {
+    const votacoes =
+      await buscarTodasVotacoes(
+        {
+          ordem:
+            "DESC",
+          ordenarPor:
+            "dataHoraRegistro",
+        },
+        {
+          maxPages: 10,
+          maxRecords: 500,
+        }
+      );
+
+    for (const votacao of votacoes) {
+      try {
+        const votacaoRecord =
+          votacao as Record<
+            string,
+            unknown
+          >;
+
+        const votacaoId =
+          votacaoRecord["id"];
+
+        if (
+          votacaoId ===
+            undefined ||
+          votacaoId === null ||
+          votacaoId === ""
+        ) {
+          continue;
+        }
+
+        const votosResponse =
+          await obterVotosVotacao(
+            String(votacaoId)
+          );
+
+        if (
+          !Array.isArray(
+            votosResponse?.dados
+          )
+        ) {
+          continue;
+        }
+
+        const voto =
+          findVoteForDeputado(
+            votosResponse.dados,
+            deputadoId
+          );
+
+        if (!voto) {
+          continue;
+        }
+
+        records.push(
+          normalizeVotoNominal(
+            votacao,
+            voto,
+            context
+          )
+        );
+      } catch (error) {
+        errors.push(
+          `Votação: ${errorMessage(
+            error
+          )}`
+        );
+      }
+    }
+  } catch (error) {
+    errors.push(
+      `Votações: ${errorMessage(
         error
       )}`
     );
