@@ -6,6 +6,7 @@ import CandidateInviteManager from "@/components/admin/CandidateInviteManager";
 import CandidateOffices from "@/components/admin/CandidateOffices";
 import CandidatePublicActivity from "@/components/admin/CandidatePublicActivity";
 import CandidateSources from "@/components/admin/CandidateSources";
+import CandidateCompletenessPanel from "@/components/admin/CandidateCompletenessPanel";
 import CandidateReviewPanel from "@/components/admin/CandidateReviewPanel";
 import CandidateDangerZone from "@/components/admin/CandidateDangerZone";
 
@@ -32,11 +33,15 @@ function ReviewBadge({
   const value = status || "draft";
 
   const classes: Record<string, string> = {
-    draft: "border-slate-200 bg-slate-100 text-slate-700",
+    draft:
+      "border-slate-200 bg-slate-100 text-slate-700",
+
     awaiting_completion:
       "border-amber-200 bg-amber-50 text-amber-700",
+
     in_review:
       "border-blue-200 bg-blue-50 text-blue-700",
+
     approved:
       "border-emerald-200 bg-emerald-50 text-emerald-700",
   };
@@ -58,7 +63,8 @@ function PublicationBadge({
 }: {
   status?: string | null;
 }) {
-  const published = status === "published";
+  const published =
+    status === "published";
 
   return (
     <span
@@ -68,7 +74,9 @@ function PublicationBadge({
           : "border-slate-200 bg-slate-100 text-slate-600"
       }`}
     >
-      {published ? "Publicado" : "Não publicado"}
+      {published
+        ? "Publicado"
+        : "Não publicado"}
     </span>
   );
 }
@@ -106,7 +114,8 @@ export default async function CandidateEditPage({
 }: PageProps) {
   const { id } = await params;
 
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
 
   const {
     data: { user },
@@ -116,7 +125,10 @@ export default async function CandidateEditPage({
     notFound();
   }
 
-  const { data: candidate, error } = await supabase
+  const {
+    data: candidate,
+    error,
+  } = await supabase
     .from("candidates")
     .select("*")
     .eq("id", id)
@@ -126,17 +138,22 @@ export default async function CandidateEditPage({
     notFound();
   }
 
-  const publicHref = candidate.slug
-    ? `/candidatos/${candidate.slug}`
-    : null;
+  const publicHref =
+    candidate.slug
+      ? `/candidatos/${candidate.slug}`
+      : null;
 
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* CABEÇALHO */}
+
+        {/* ==========================================
+            CABEÇALHO
+        ========================================== */}
 
         <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+
             <div className="min-w-0">
               <Link
                 href="/admin/candidatos"
@@ -158,7 +175,8 @@ export default async function CandidateEditPage({
 
                 {candidate.name &&
                   candidate.ballot_name &&
-                  candidate.name !== candidate.ballot_name && (
+                  candidate.name !==
+                    candidate.ballot_name && (
                     <p className="mt-1 text-sm text-slate-500">
                       {candidate.name}
                     </p>
@@ -167,7 +185,9 @@ export default async function CandidateEditPage({
 
               <div className="mt-4 flex flex-wrap gap-2">
                 <ReviewBadge
-                  status={candidate.review_status}
+                  status={
+                    candidate.review_status
+                  }
                 />
 
                 <PublicationBadge
@@ -183,6 +203,7 @@ export default async function CandidateEditPage({
                 {candidate.party && (
                   <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
                     {candidate.party}
+
                     {candidate.number
                       ? ` • ${candidate.number}`
                       : ""}
@@ -206,8 +227,13 @@ export default async function CandidateEditPage({
           </div>
         </div>
 
+        {/* ==========================================
+            SEÇÕES
+        ========================================== */}
+
         <div className="space-y-10">
-          {/* 1. FICHA */}
+
+          {/* 1 */}
 
           <section>
             <SectionHeader
@@ -216,10 +242,12 @@ export default async function CandidateEditPage({
               description="Dados de identificação, perfil, mídia, contatos e informações gerais."
             />
 
-            <CandidateForm initial={candidate} />
+            <CandidateForm
+              initial={candidate}
+            />
           </section>
 
-          {/* 2. PREENCHIMENTO EXTERNO */}
+          {/* 2 */}
 
           <section>
             <SectionHeader
@@ -229,11 +257,13 @@ export default async function CandidateEditPage({
             />
 
             <CandidateInviteManager
-              candidateId={candidate.id}
+              candidateId={
+                candidate.id
+              }
             />
           </section>
 
-          {/* 3. ATUAÇÃO PÚBLICA */}
+          {/* 3 */}
 
           <section>
             <SectionHeader
@@ -243,11 +273,13 @@ export default async function CandidateEditPage({
             />
 
             <CandidatePublicActivity
-              candidateId={candidate.id}
+              candidateId={
+                candidate.id
+              }
             />
           </section>
 
-          {/* 4. PRESENÇA TERRITORIAL */}
+          {/* 4 */}
 
           <section>
             <SectionHeader
@@ -257,11 +289,13 @@ export default async function CandidateEditPage({
             />
 
             <CandidateOffices
-              candidateId={candidate.id}
+              candidateId={
+                candidate.id
+              }
             />
           </section>
 
-          {/* 5. FONTES */}
+          {/* 5 */}
 
           <section>
             <SectionHeader
@@ -271,41 +305,65 @@ export default async function CandidateEditPage({
             />
 
             <CandidateSources
-              candidateId={candidate.id}
+              candidateId={
+                candidate.id
+              }
             />
           </section>
 
-          {/* 6. REVISÃO E PUBLICAÇÃO */}
+          {/* 6 */}
 
           <section>
             <SectionHeader
               number={6}
+              title="Completude documental"
+              description="Checklist operacional do preenchimento e da documentação disponível no cadastro."
+            />
+
+            <CandidateCompletenessPanel
+              candidateId={
+                candidate.id
+              }
+            />
+          </section>
+
+          {/* 7 */}
+
+          <section>
+            <SectionHeader
+              number={7}
               title="Revisão e publicação"
               description="Controle separadamente o estágio de revisão editorial e a visibilidade pública deste cadastro."
             />
 
             <CandidateReviewPanel
-              candidateId={candidate.id}
+              candidateId={
+                candidate.id
+              }
               initialReviewStatus={
-                candidate.review_status || "draft"
+                candidate.review_status ||
+                "draft"
               }
               initialPublicationStatus={
-                candidate.status || "draft"
+                candidate.status ||
+                "draft"
               }
             />
           </section>
 
-          {/* 7. ADMINISTRAÇÃO */}
+          {/* 8 */}
 
           <section>
             <SectionHeader
-              number={7}
+              number={8}
               title="Administração"
               description="Operações administrativas relacionadas ao registro deste candidato."
             />
 
             <CandidateDangerZone
-              candidateId={candidate.id}
+              candidateId={
+                candidate.id
+              }
               candidateName={
                 candidate.ballot_name ||
                 candidate.name ||
