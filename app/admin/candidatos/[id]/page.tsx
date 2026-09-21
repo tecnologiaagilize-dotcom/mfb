@@ -6,6 +6,7 @@ import CandidateInviteManager from "@/components/admin/CandidateInviteManager";
 import CandidateOffices from "@/components/admin/CandidateOffices";
 import CandidatePublicActivity from "@/components/admin/CandidatePublicActivity";
 import CandidateSources from "@/components/admin/CandidateSources";
+import CandidateReviewPanel from "@/components/admin/CandidateReviewPanel";
 import CandidateDangerZone from "@/components/admin/CandidateDangerZone";
 
 import { createClient } from "@/lib/supabase/server";
@@ -132,9 +133,7 @@ export default async function CandidateEditPage({
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* =====================================================
-            CABEÇALHO
-        ===================================================== */}
+        {/* CABEÇALHO */}
 
         <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -208,9 +207,7 @@ export default async function CandidateEditPage({
         </div>
 
         <div className="space-y-10">
-          {/* ===================================================
-              1. FICHA DO CANDIDATO
-          =================================================== */}
+          {/* 1. FICHA */}
 
           <section>
             <SectionHeader
@@ -222,15 +219,13 @@ export default async function CandidateEditPage({
             <CandidateForm initial={candidate} />
           </section>
 
-          {/* ===================================================
-              2. PREENCHIMENTO EXTERNO
-          =================================================== */}
+          {/* 2. PREENCHIMENTO EXTERNO */}
 
           <section>
             <SectionHeader
               number={2}
               title="Preenchimento externo"
-              description="Envie um acesso temporário para que o próprio candidato ou sua equipe complemente as informações do cadastro."
+              description="Envie um acesso temporário para que o candidato ou sua equipe complemente as informações do cadastro."
             />
 
             <CandidateInviteManager
@@ -238,9 +233,7 @@ export default async function CandidateEditPage({
             />
           </section>
 
-          {/* ===================================================
-              3. ATUAÇÃO PÚBLICA
-          =================================================== */}
+          {/* 3. ATUAÇÃO PÚBLICA */}
 
           <section>
             <SectionHeader
@@ -254,9 +247,7 @@ export default async function CandidateEditPage({
             />
           </section>
 
-          {/* ===================================================
-              4. PRESENÇA TERRITORIAL
-          =================================================== */}
+          {/* 4. PRESENÇA TERRITORIAL */}
 
           <section>
             <SectionHeader
@@ -270,9 +261,7 @@ export default async function CandidateEditPage({
             />
           </section>
 
-          {/* ===================================================
-              5. VERIFICAÇÃO
-          =================================================== */}
+          {/* 5. FONTES */}
 
           <section>
             <SectionHeader
@@ -286,13 +275,31 @@ export default async function CandidateEditPage({
             />
           </section>
 
-          {/* ===================================================
-              6. ADMINISTRAÇÃO
-          =================================================== */}
+          {/* 6. REVISÃO E PUBLICAÇÃO */}
 
           <section>
             <SectionHeader
               number={6}
+              title="Revisão e publicação"
+              description="Controle separadamente o estágio de revisão editorial e a visibilidade pública deste cadastro."
+            />
+
+            <CandidateReviewPanel
+              candidateId={candidate.id}
+              initialReviewStatus={
+                candidate.review_status || "draft"
+              }
+              initialPublicationStatus={
+                candidate.status || "draft"
+              }
+            />
+          </section>
+
+          {/* 7. ADMINISTRAÇÃO */}
+
+          <section>
+            <SectionHeader
+              number={7}
               title="Administração"
               description="Operações administrativas relacionadas ao registro deste candidato."
             />
