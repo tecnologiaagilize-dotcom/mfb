@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 
 export const dynamic = "force-dynamic";
 
@@ -1594,7 +1593,6 @@ export default async function CandidatePage({
         </div>
       </main>
 
-      <Footer />
     </>
   );
 }
