@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { CandidateCard } from "@/components/CandidateCard";
 import { stateName } from "@/lib/states";
 import { notFound } from "next/navigation";
@@ -45,7 +44,6 @@ export default async function StatePage({ params }: { params: Promise<{uf:string
           )}
         </div>
       </main>
-      <Footer />
     </>
   );
 }
