@@ -124,7 +124,7 @@ export async function POST(
       await supabase
         .from("candidates")
         .select(
-          "id, name, ballot_name, state_uf"
+          "id, name, ballot_name, state_uf, cargo, number"
         )
         .eq("id", candidateId)
         .maybeSingle();
@@ -172,6 +172,8 @@ export async function POST(
           candidate.name,
         stateUf:
           candidate.state_uf || null,
+        office: candidate.cargo || null,
+        candidateNumber: candidate.number || null,
       }
     );
 
