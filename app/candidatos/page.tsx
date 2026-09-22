@@ -3,7 +3,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { CandidateCard } from "@/components/CandidateCard";
 import { BrazilMap } from "@/components/BrazilMap";
 
@@ -762,7 +761,6 @@ export default async function CandidatesPage() {
         </section>
       </main>
 
-      <Footer />
     </>
   );
 }
