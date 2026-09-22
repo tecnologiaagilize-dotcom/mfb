@@ -29,9 +29,10 @@ function decodeCsv(bytes: Uint8Array) {
   }
 }
 
-function unzipFirstCsv(buffer: ArrayBuffer): Uint8Array {
+function unzipCandidatesCsv(buffer: ArrayBuffer): Uint8Array {
   const data = Buffer.from(buffer);
   let offset = 0;
+  const csvFiles: Array<{ name: string; bytes: Uint8Array }> = [];
 
   while (offset + 30 <= data.length) {
     if (data.readUInt32LE(offset) !== 0x04034b50) {
@@ -64,18 +65,14 @@ function unzipFirstCsv(buffer: ArrayBuffer): Uint8Array {
       );
 
       if (method === 0) {
-        return new Uint8Array(compressed);
-      }
-
-      if (method === 8) {
-        return new Uint8Array(
-          inflateRawSync(compressed)
+        csvFiles.push({ name: fileName, bytes: new Uint8Array(compressed) });
+      } else if (method === 8) {
+        csvFiles.push({ name: fileName, bytes: new Uint8Array(inflateRawSync(compressed)) });
+      } else {
+        throw new Error(
+          `Método ZIP não suportado no arquivo do TSE: ${method}.`
         );
       }
-
-      throw new Error(
-        `Método ZIP não suportado no arquivo do TSE: ${method}.`
-      );
     }
 
     if (compressedSize > 0) {
@@ -85,8 +82,12 @@ function unzipFirstCsv(buffer: ArrayBuffer): Uint8Array {
     }
   }
 
+  const national = csvFiles.find((file) => /_BRASIL\.csv$/i.test(file.name));
+  if (national) return national.bytes;
+  if (csvFiles.length === 1) return csvFiles[0].bytes;
+
   throw new Error(
-    "Nenhum CSV foi localizado no recurso ZIP do TSE."
+    "O CSV nacional de candidatos não foi localizado no recurso ZIP do TSE."
   );
 }
 
@@ -257,7 +258,7 @@ export async function obterCandidatos2026(): Promise<{
     resource.url!.toLowerCase().endsWith(".zip") ||
     Buffer.from(buffer).subarray(0, 2).toString() === "PK"
   ) {
-    bytes = unzipFirstCsv(buffer);
+    bytes = unzipCandidatesCsv(buffer);
   } else {
     bytes = new Uint8Array(buffer);
   }
@@ -283,6 +284,63 @@ export function localizarCandidatoPorSq(
   );
 }
 
+function comparable(value: unknown) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]/gi, "")
+    .toUpperCase();
+}
+
+export function localizarCandidato(
+  rows: TseCsvRow[],
+  filters: {
+    candidateName?: string | null;
+    stateUf?: string | null;
+    office?: string | null;
+    candidateNumber?: string | number | null;
+  }
+) {
+  const uf = comparable(filters.stateUf);
+  const number = comparable(filters.candidateNumber);
+  const name = comparable(filters.candidateName);
+  const office = comparable(filters.office);
+
+  let matches = rows.filter((row) => {
+    if (uf && comparable(row.SG_UF) !== uf) return false;
+    if (number && comparable(row.NR_CANDIDATO) !== number) return false;
+    return true;
+  });
+
+  if (office) {
+    const officeMatches = matches.filter((row) => {
+      const rowOffice = comparable(row.DS_CARGO);
+      return rowOffice === office || rowOffice.startsWith(office) || office.startsWith(rowOffice);
+    });
+    if (officeMatches.length) matches = officeMatches;
+  }
+
+  if (matches.length > 1 && name) {
+    const nameMatches = matches.filter((row) =>
+      [row.NM_URNA_CANDIDATO, row.NM_CANDIDATO].some(
+        (candidateName) => comparable(candidateName) === name
+      )
+    );
+    if (nameMatches.length) matches = nameMatches;
+  }
+
+  if (matches.length === 1) return matches[0];
+  if (matches.length === 0) {
+    throw new Error(
+      "Candidato não localizado no TSE com os dados cadastrados. Confira UF, cargo, número e nome de urna."
+    );
+  }
+
+  throw new Error(
+    "Mais de um candidato foi localizado no TSE. Informe o número eleitoral ou vincule o SQ_CANDIDATO para eliminar a ambiguidade."
+  );
+}
+
 export function tseCandidateOfficialUrl(
   sqCandidato: string
 ) {
@@ -293,6 +351,7 @@ export function tseCandidateOfficialUrl(
 
 export const tseClient = {
   obterCandidatos2026,
+  localizarCandidato,
   localizarCandidatoPorSq,
   tseCandidateOfficialUrl,
 };

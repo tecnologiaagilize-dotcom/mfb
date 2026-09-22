@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   TSE_PROVIDER_CODE,
+  localizarCandidato,
   localizarCandidatoPorSq,
   obterCandidatos2026,
 } from "./client";
@@ -17,6 +18,8 @@ type SyncOptions = {
   sqCandidato?: string | number | null;
   candidateName?: string | null;
   stateUf?: string | null;
+  office?: string | null;
+  candidateNumber?: string | number | null;
 };
 
 export type TseSyncResult = {
@@ -161,17 +164,11 @@ export async function syncTseCandidate(
     options
   );
 
-  const sqCandidato = String(
+  let sqCandidato = String(
     options.sqCandidato ||
       externalIdentity?.external_id ||
       ""
   ).trim();
-
-  if (!sqCandidato) {
-    throw new Error(
-      "A identidade externa do TSE deve informar o SQ_CANDIDATO."
-    );
-  }
 
   const runId = await createRun(
     supabase,
@@ -195,15 +192,53 @@ export async function syncTseCandidate(
 
   try {
     const source = await obterCandidatos2026();
-    const row = localizarCandidatoPorSq(
-      source.rows,
-      sqCandidato
-    );
+    const row = sqCandidato
+      ? localizarCandidatoPorSq(source.rows, sqCandidato)
+      : localizarCandidato(source.rows, {
+          candidateName: options.candidateName,
+          stateUf: options.stateUf,
+          office: options.office,
+          candidateNumber: options.candidateNumber,
+        });
 
     if (!row) {
       throw new Error(
         `SQ_CANDIDATO ${sqCandidato} não localizado na base oficial Candidatos 2026 do TSE.`
       );
+    }
+
+    sqCandidato = String(row.SQ_CANDIDATO || "").trim();
+    result.sqCandidato = sqCandidato;
+
+    let resolvedIdentity = externalIdentity;
+
+    if (!resolvedIdentity) {
+      const { data, error } = await supabase
+        .from("candidate_external_identities")
+        .insert({
+          candidate_id: options.candidateId,
+          provider_id: p.id,
+          external_id: sqCandidato,
+          external_name:
+            row.NM_URNA_CANDIDATO || row.NM_CANDIDATO || null,
+          external_url: null,
+          verification_status: "verified",
+          verified_at: new Date().toISOString(),
+          metadata: {
+            matched_automatically: true,
+            election_year: "2026",
+          },
+        })
+        .select("*")
+        .single();
+
+      if (error || !data) {
+        throw new Error(
+          `Candidato localizado no TSE, mas não foi possível salvar o vínculo: ${error?.message || "erro desconhecido"}`
+        );
+      }
+
+      resolvedIdentity = data;
     }
 
     const record = validateNormalizedRecord(
@@ -236,7 +271,7 @@ export async function syncTseCandidate(
       sync_run_id: runId,
       candidate_id: options.candidateId,
       external_identity_id:
-        externalIdentity?.id || null,
+        resolvedIdentity?.id || null,
       record_type: record.record_type,
       external_id: record.external_id,
       external_url: record.external_url,
