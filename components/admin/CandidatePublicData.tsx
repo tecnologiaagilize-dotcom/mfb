@@ -743,13 +743,6 @@ export default function CandidatePublicData({
     ) || null;
 
   async function handleTseSync() {
-    if (!tseIdentity) {
-      setError(
-        "Vincule primeiro a identidade eleitoral do candidato no TSE."
-      );
-      return;
-    }
-
     const confirmed = window.confirm(
       "Executar a sincronização manual com o TSE? Os dados eleitorais coletados irão para a fila administrativa e não serão publicados automaticamente."
     );
@@ -770,8 +763,8 @@ export default function CandidatePublicData({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            externalIdentityId: tseIdentity.id,
-            sqCandidato: tseIdentity.external_id,
+            externalIdentityId: tseIdentity?.id || null,
+            sqCandidato: tseIdentity?.external_id || null,
           }),
         }
       );
@@ -1549,7 +1542,8 @@ export default function CandidatePublicData({
               }}
             >
               Sincronização manual dos dados eleitorais oficiais
-              vinculados pelo SQ_CANDIDATO. Os dados coletados
+              por UF, cargo, número e nome. O SQ_CANDIDATO é
+              vinculado automaticamente quando localizado. Os dados coletados
               permanecem na fila administrativa para conferência e
               não são publicados automaticamente.
             </p>
@@ -1560,14 +1554,11 @@ export default function CandidatePublicData({
             className="btn btn-primary"
             disabled={
               syncingTse ||
-              !tseProvider ||
-              !tseIdentity
+              !tseProvider
             }
             onClick={() => void handleTseSync()}
             title={
-              tseIdentity
-                ? "Executar sincronização manual do TSE"
-                : "Vincule primeiro a identidade do TSE"
+              "Executar sincronização manual do TSE"
             }
           >
             {syncingTse ? (
@@ -1613,9 +1604,10 @@ export default function CandidatePublicData({
               lineHeight: 1.6,
             }}
           >
-            Para habilitar a sincronização, crie abaixo um vínculo
-            com <strong>{tseProvider.name}</strong> e informe como ID
-            externo o <strong>SQ_CANDIDATO</strong> oficial.
+            O sistema localizará o candidato automaticamente pelos
+            dados do cadastro e salvará o vínculo com o {" "}
+            <strong>SQ_CANDIDATO</strong>. Confira antes a UF, o cargo,
+            o número e o nome do candidato.
           </div>
         ) : (
           <>
