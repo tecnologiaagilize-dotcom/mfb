@@ -12,6 +12,7 @@ create table if not exists public.candidates (
   photo_url text,
   biography text,
   proposals text,
+  endorsement_reason text,
   instagram_url text,
   facebook_url text,
   youtube_url text,
