@@ -108,6 +108,7 @@ export function BrazilMap({
 
   return (
     <div
+      onMouseLeave={() => setHoveredUF(null)}
       style={{
         position: "relative",
         width: "100%",
@@ -189,14 +190,6 @@ export function BrazilMap({
                         setHoveredUF(uf);
                       }
                     }}
-                    onMouseLeave={() => {
-                      if (
-                        showCandidateMosaic &&
-                        candidates.length > 0
-                      ) {
-                        setHoveredUF(null);
-                      }
-                    }}
                     style={{
                       default: {
                         fill:
@@ -250,12 +243,10 @@ export function BrazilMap({
         candidates.length > 0 && (
           <div
             style={{
-              position: "absolute",
-              right: 12,
-              top: 12,
-
+              position: "relative",
               width: 360,
-              maxWidth: "calc(100% - 24px)",
+              maxWidth: "100%",
+              margin: "16px auto 0",
 
               padding: 18,
 
@@ -269,17 +260,7 @@ export function BrazilMap({
               boxShadow:
                 "0 18px 50px rgba(16,24,40,.20)",
 
-              zIndex: 30,
             }}
-            onMouseEnter={() => {
-              // Mantém o mosaico aberto quando
-              // o usuário move o mouse do mapa
-              // para dentro dele.
-              setHoveredUF(hoveredUF);
-            }}
-            onMouseLeave={() =>
-              setHoveredUF(null)
-            }
           >
             {/* CABEÇALHO */}
 
