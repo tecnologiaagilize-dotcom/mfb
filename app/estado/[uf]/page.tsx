@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CandidateCard } from "@/components/CandidateCard";
 import { stateName } from "@/lib/states";
@@ -31,6 +32,10 @@ export default async function StatePage({ params }: { params: Promise<{uf:string
           <span className="badge">{upper}</span>
           <h1 style={{fontSize:"clamp(40px,6vw,62px)",margin:"12px 0"}}>{name}</h1>
           <p style={{fontSize:18,color:"#667085"}}>Candidatos indicados pelo Movimento Família Brasileira — Eleições 2026.</p>
+          <div className="colinha-state-callout">
+            <div><strong>Crie sua colinha</strong><p>Escolha candidatos publicados para {name} e adicione sua foto ao cartaz.</p></div>
+            <Link className="btn btn-primary" href={`/colinha?uf=${upper}`}>Personalizar minha colinha</Link>
+          </div>
 
           {candidates.length === 0 ? (
             <div className="card" style={{padding:26,marginTop:30}}>
