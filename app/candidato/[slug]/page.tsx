@@ -1,10 +1,48 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/Header";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const supabase = await createClient();
+  const { data: candidate } = await supabase
+    .from("candidates_public")
+    .select("name, ballot_name, cargo, state_uf, slug")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .maybeSingle();
+
+  if (!candidate) return { title: "Candidato não encontrado | MFB" };
+
+  const name = candidate.ballot_name || candidate.name;
+  const title = `${name} | Candidatos indicados pelo MFB`;
+  const description = `Conheça o perfil de ${name}, ${candidate.cargo} em ${candidate.state_uf}, indicado(a) pelo Movimento Família Brasileira.`;
+  const url = `/candidato/${encodeURIComponent(candidate.slug)}`;
+  const image = `${url}/opengraph-image`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      type: "profile",
+      url,
+      images: [{ url: image, width: 1200, height: 630, alt: `${name} — indicado(a) pelo MFB` }],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
+  };
+}
 
 type ActivitySource = {
   source_name?: string | null;
