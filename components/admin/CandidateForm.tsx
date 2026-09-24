@@ -158,6 +158,9 @@ export default function CandidateForm({
     priority_areas:
       initial?.priority_areas ?? "",
 
+    endorsement_reason:
+      initial?.endorsement_reason ?? "",
+
     instagram_url:
       initial?.instagram_url ?? "",
 
@@ -1126,6 +1129,20 @@ export default function CandidateForm({
                   e.target.value
                 )
               }
+            />
+          </label>
+
+          <label style={{ display: "block", marginTop: 24, padding: 18, background: "#f0f9f4", border: "1px solid #b8e2c8", borderRadius: 14 }}>
+            <span style={labelStyle}>Por que o MFB apoia esta candidatura?</span>
+            <FieldHelp>Nota institucional exibida ao lado do selo de apoio na página pública. Descreva motivos específicos e aprovados pelo Movimento; evite atribuir propostas não confirmadas à candidatura.</FieldHelp>
+            <textarea
+              className="field"
+              rows={5}
+              maxLength={900}
+              placeholder="O Movimento Família Brasileira apoia esta candidatura por..."
+              value={form.endorsement_reason}
+              onChange={(e) => set("endorsement_reason", e.target.value)}
+              style={{ marginTop: 10 }}
             />
           </label>
         </section>
