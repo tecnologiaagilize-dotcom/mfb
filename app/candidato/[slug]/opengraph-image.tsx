@@ -50,23 +50,28 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const { slug } = await params;
   const candidate = await getPublicSharedCandidate(slug);
 
-  if (!candidate) return new Response("Candidato não encontrado", { status: 404 });
+  if (!candidate) return new Response("Cadastro público indisponível", { status: 404 });
+
+  // A arte sempre utiliza a foto cadastrada, com o mesmo enquadramento da ficha.
+  // Se o servidor não conseguir lê-la, não entrega uma imagem substituta.
+  if (!candidate.photo_url) return new Response("Foto do cadastro indisponível", { status: 404 });
 
   const name = sharedCandidateName(candidate);
   const [photo, logo] = await Promise.all([
     photoDataUrl(candidate.photo_url || null),
     logoDataUrl(),
   ]);
+  if (!photo) return new Response("Não foi possível carregar a foto cadastrada", { status: 502 });
+
+  const x = candidate.photo_position_x ?? 50;
+  const y = candidate.photo_position_y ?? 20;
+  const zoom = candidate.photo_zoom ?? 1;
 
   return new ImageResponse(
     <div style={{ width: "100%", height: "100%", display: "flex", background: "#f7faf8", color: "#172033", fontFamily: "sans-serif" }}>
       <div style={{ width: 460, height: 630, display: "flex", background: "#e2f1e8", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-        {photo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 18%" }} />
-        ) : (
-          <span style={{ fontSize: 180, fontWeight: 800, color: "#087f50" }}>{name.charAt(0).toUpperCase()}</span>
-        )}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${x}% ${y}%`, transform: `scale(${zoom})` }} />
       </div>
       <div style={{ width: 740, padding: "46px 56px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
