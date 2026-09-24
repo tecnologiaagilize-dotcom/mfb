@@ -179,6 +179,12 @@ export function BrazilMap({
                 <Link
                   key={geo.rsmKey}
                   href={stateHref(uf)}
+                  onClick={(event) => {
+                    if (showCandidateMosaic && candidates.length > 0 && window.matchMedia("(hover: none)").matches) {
+                      event.preventDefault();
+                      setHoveredUF(uf);
+                    }
+                  }}
                 >
                   <Geography
                     geography={geo}
@@ -242,14 +248,10 @@ export function BrazilMap({
         hoveredUF &&
         candidates.length > 0 && (
           <div
+            className="brazil-map-popover"
+            role="region"
+            aria-label={`Apoiados pelo MFB em ${hoveredUF}`}
             style={{
-              position: "relative",
-              width: 360,
-              maxWidth: "100%",
-              margin: "16px auto 0",
-
-              padding: 18,
-
               background: "#ffffff",
 
               border:
@@ -259,7 +261,6 @@ export function BrazilMap({
 
               boxShadow:
                 "0 18px 50px rgba(16,24,40,.20)",
-
             }}
           >
             {/* CABEÇALHO */}
@@ -297,29 +298,11 @@ export function BrazilMap({
                 </h3>
               </div>
 
-              <div
-                style={{
-                  minWidth: 34,
-                  height: 34,
-
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent:
-                    "center",
-
-                  padding: "0 9px",
-
-                  borderRadius: 20,
-
-                  background: "#f2f4f7",
-
-                  fontSize: 13,
-                  fontWeight: 800,
-                }}
-              >
-                {
-                  hoveredCandidates.length
-                }
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ minWidth: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 9px", borderRadius: 20, background: "#f2f4f7", fontSize: 13, fontWeight: 800 }}>
+                  {hoveredCandidates.length}
+                </div>
+                <button type="button" className="brazil-map-popover-close" aria-label="Fechar card de apoiados" onClick={() => setHoveredUF(null)}>×</button>
               </div>
             </div>
 
@@ -340,6 +323,7 @@ export function BrazilMap({
                 </p>
 
                 <Link
+                  className="brazil-map-popover-link"
                   href={stateHref(
                     hoveredUF
                   )}
@@ -387,6 +371,7 @@ export function BrazilMap({
 
                         return (
                           <Link
+                            className="brazil-map-popover-link"
                             key={
                               candidate.id ||
                               candidate.slug ||
@@ -606,6 +591,7 @@ export function BrazilMap({
                   }}
                 >
                   <Link
+                    className="brazil-map-popover-link"
                     href={stateHref(
                       hoveredUF
                     )}
