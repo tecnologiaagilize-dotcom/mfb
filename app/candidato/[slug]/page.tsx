@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { createClient } from "@/lib/supabase/server";
+import { getPublicSharedCandidate } from "@/lib/candidates/public-share";
 import { Header } from "@/components/Header";
 
 export const dynamic = "force-dynamic";
@@ -13,21 +14,20 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = await createClient();
-  const { data: candidate } = await supabase
-    .from("candidates_public")
-    .select("name, ballot_name, cargo, state_uf, slug")
-    .eq("slug", slug)
-    .eq("status", "published")
-    .maybeSingle();
+  const candidate = await getPublicSharedCandidate(slug);
 
-  if (!candidate) return { title: "Candidato não encontrado | MFB" };
+  if (!candidate) {
+    return {
+      title: "Candidatos indicados pelo MFB",
+      description: "Conheça os candidatos indicados pelo Movimento Família Brasileira.",
+    };
+  }
 
   const name = candidate.ballot_name || candidate.name;
   const title = `${name} | Candidatos indicados pelo MFB`;
   const description = `Conheça o perfil de ${name}, ${candidate.cargo} em ${candidate.state_uf}, indicado(a) pelo Movimento Família Brasileira.`;
   const url = `/candidato/${encodeURIComponent(candidate.slug)}`;
-  const image = `${url}/opengraph-image`;
+  const image = `${url}/opengraph-image?mfb=2`;
 
   return {
     title,
