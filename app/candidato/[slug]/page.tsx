@@ -811,8 +811,9 @@ export default async function CandidatePage({
     deliveries.length > 0;
 
   const publicName =
-    candidate.ballot_name ||
-    candidate.name;
+    candidate.ballot_name && !/^\d+$/.test(candidate.ballot_name.trim())
+      ? candidate.ballot_name
+      : candidate.name;
 
   const territory =
     candidate.state_uf === "BR"
@@ -833,12 +834,6 @@ export default async function CandidatePage({
     candidate.political_project ||
     candidate.proposals ||
     candidate.priority_areas;
-
-  const hasChannels =
-    candidate.instagram_url ||
-    candidate.facebook_url ||
-    candidate.youtube_url ||
-    candidate.website_url;
 
   return (
     <>
@@ -896,23 +891,9 @@ export default async function CandidatePage({
                 <span className="mfb-certificate-heading-rule" aria-hidden="true" />
               </div>
 
-            {/* CABEÇALHO */}
-
             <div className="mfb-certificate-layout">
-              <div>
-                <div
-                  className="mfb-certificate-portrait"
-                  style={{
-                    width: "100%",
-                    aspectRatio: "3 / 4",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    background: "#edf8f2",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
+              <div className="mfb-certificate-photo-wrap">
+                <div className="mfb-certificate-portrait">
                   {candidate.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -922,178 +903,65 @@ export default async function CandidatePage({
                         width: "100%",
                         height: "100%",
                         objectFit: "cover",
-                        objectPosition: `${
-                          candidate.photo_position_x ??
-                          50
-                        }% ${
-                          candidate.photo_position_y ??
-                          20
-                        }%`,
-                        transform: `scale(${
-                          candidate.photo_zoom ?? 1
-                        })`,
+                        objectPosition: `${candidate.photo_position_x ?? 50}% ${candidate.photo_position_y ?? 20}%`,
+                        transform: `scale(${candidate.photo_zoom ?? 1})`,
                       }}
                     />
                   ) : (
-                    <div
-                      style={{
-                        fontSize: 80,
-                        fontWeight: 900,
-                        color: "#009b5b",
-                      }}
-                    >
-                      {publicName
-                        ?.charAt(0)
-                        ?.toUpperCase()}
+                    <div className="mfb-certificate-photo-fallback" aria-label="Foto não cadastrada">
+                      {publicName?.charAt(0)?.toUpperCase()}
                     </div>
                   )}
                 </div>
               </div>
 
-              <div>
-                <span className="badge">
-                  {candidate.cargo}
-                </span>
-
-                <h1
-                  style={{
-                    fontSize:
-                      "clamp(34px,5vw,54px)",
-                    margin: "12px 0 5px",
-                    lineHeight: 1.05,
-                  }}
-                >
-                  {publicName}
-                </h1>
-
-                {candidate.ballot_name &&
-                  candidate.name &&
-                  candidate.ballot_name !==
-                    candidate.name && (
-                    <p
-                      style={{
-                        margin: "8px 0 0",
-                        color: "#667085",
-                        fontSize: 15,
-                      }}
-                    >
-                      {candidate.name}
-                    </p>
+              <div className="mfb-certificate-content">
+                <div className="mfb-certificate-identity">
+                  <span className="mfb-certificate-kicker">Certificado de apoio à candidatura</span>
+                  <h1>{publicName}</h1>
+                  {candidate.ballot_name && candidate.name && candidate.ballot_name !== candidate.name && (
+                    <p className="mfb-certificate-civil-name">{candidate.name}</p>
                   )}
-
-                <p
-                  style={{
-                    color: "#667085",
-                    fontSize: 17,
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {territory}
-
-                  {candidate.party
-                    ? ` · ${candidate.party}`
-                    : ""}
-
-                  {candidate.number
-                    ? ` · Nº ${candidate.number}`
-                    : ""}
-                </p>
-
-            {/* JUSTIFICATIVA INSTITUCIONAL DO APOIO */}
-
-            <section className="mfb-endorsement" aria-labelledby="mfb-endorsement-title">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="mfb-endorsement-seal" src="/selo-aprovacao-mfb.svg" alt="Aprovado pela Família Brasileira — selo institucional do Movimento Família Brasileira" width="150" height="150" />
-              <div>
-                <p className="mfb-endorsement-label">NOTA DO MOVIMENTO FAMÍLIA BRASILEIRA</p>
-                <h2 id="mfb-endorsement-title">Por que apoiamos {publicName}?</h2>
-                <p className="mfb-endorsement-reason">
-                  {candidate.endorsement_reason?.trim() ||
-                    "O Movimento Família Brasileira apoia esta candidatura por identificar afinidade com princípios que orientam sua atuação: valorização da família, proteção de crianças e adolescentes, liberdade de crença e responsabilidade na vida pública."}
-                </p>
-                <p className="mfb-endorsement-disclosure">Esta é uma manifestação institucional de apoio do MFB. Informações biográficas, propostas e registros de atuação estão apresentadas nas seções próprias deste perfil.</p>
-              </div>
-            </section>
-
-
-                {candidate.mini_cv && (
-                  <p
-                    style={{
-                      marginTop: 22,
-                      fontSize: 18,
-                      lineHeight: 1.7,
-                      color: "#344054",
-                      whiteSpace: "pre-wrap",
-                    }}
-                  >
-                    {candidate.mini_cv}
+                  <p className="mfb-certificate-meta">
+                    {candidate.cargo} · {territory}
+                    {candidate.party ? ` · ${candidate.party}` : ""}
+                    {candidate.number ? ` · Nº ${candidate.number}` : ""}
                   </p>
-                )}
+                </div>
 
-                {hasChannels && (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 10,
-                      flexWrap: "wrap",
-                      marginTop: 24,
-                    }}
-                  >
-                    {candidate.instagram_url && (
-                      <a
-                        className="btn btn-secondary"
-                        href={
-                          candidate.instagram_url
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Instagram
-                      </a>
-                    )}
-
-                    {candidate.facebook_url && (
-                      <a
-                        className="btn btn-secondary"
-                        href={
-                          candidate.facebook_url
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Facebook
-                      </a>
-                    )}
-
-                    {candidate.youtube_url && (
-                      <a
-                        className="btn btn-secondary"
-                        href={
-                          candidate.youtube_url
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        YouTube
-                      </a>
-                    )}
-
-                    {candidate.website_url && (
-                      <a
-                        className="btn btn-primary"
-                        href={
-                          candidate.website_url
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Site
-                      </a>
-                    )}
+                <section className="mfb-endorsement" aria-labelledby="mfb-endorsement-title">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="mfb-endorsement-seal" src="/selo-aprovacao-mfb.svg" alt="Aprovado pela Família Brasileira — selo institucional do Movimento Família Brasileira" width="155" height="155" />
+                  <div>
+                    <h2 id="mfb-endorsement-title">Por que apoiamos {publicName}?</h2>
+                    <p className="mfb-endorsement-reason">
+                      {candidate.endorsement_reason?.trim() ||
+                        "O Movimento Família Brasileira apoia esta candidatura por identificar afinidade com princípios que orientam sua atuação: valorização da família, proteção de crianças e adolescentes, liberdade de crença e responsabilidade na vida pública."}
+                    </p>
+                    <p className="mfb-endorsement-disclosure">Manifestação institucional de apoio do MFB. A trajetória, as propostas e as fontes estão nas seções deste perfil.</p>
                   </div>
-                )}
+                </section>
               </div>
             </div>
+              <footer className="mfb-certificate-footer">
+                <p className="mfb-certificate-date">
+                  Brasília, {candidate.endorsement_issued_at
+                    ? formatDate(candidate.endorsement_issued_at)
+                    : "data de emissão a confirmar"}
+                </p>
+                <div className="mfb-certificate-signatures" aria-label="Responsáveis institucionais pelo apoio">
+                  <div className="mfb-certificate-signatory">
+                    <span aria-hidden="true" />
+                    <strong>Helen Pontes</strong>
+                    <small>Presidente · MFB</small>
+                  </div>
+                  <div className="mfb-certificate-signatory">
+                    <span aria-hidden="true" />
+                    <strong>Paulo Rocha</strong>
+                    <small>Coordenador · MFB</small>
+                  </div>
+                </div>
+              </footer>
             </section>
 
             <nav className="mfb-profile-nav" aria-label="Navegação do perfil">
@@ -1103,6 +971,10 @@ export default async function CandidatePage({
               {candidate.public_experience && <a href="#experiencia">Experiência</a>}
               {publicOffices.length > 0 && <a href="#territorio">Presença</a>}
               {(publicSources.length > 0 || candidate.source_url) && <a href="#fontes">Fontes</a>}
+              {candidate.website_url && <a href={candidate.website_url} target="_blank" rel="noopener noreferrer">Site ↗</a>}
+              {candidate.instagram_url && <a href={candidate.instagram_url} target="_blank" rel="noopener noreferrer">Instagram ↗</a>}
+              {candidate.facebook_url && <a href={candidate.facebook_url} target="_blank" rel="noopener noreferrer">Facebook ↗</a>}
+              {candidate.youtube_url && <a href={candidate.youtube_url} target="_blank" rel="noopener noreferrer">YouTube ↗</a>}
               {candidate.video_url && <a href="#apresentacao">Vídeo</a>}
             </nav>
 
@@ -1110,6 +982,9 @@ export default async function CandidatePage({
 
             {hasProfile && (
               <ContentSection id="sobre" title="Sobre">
+                {candidate.mini_cv && (
+                  <p className="mfb-profile-mini-cv">{candidate.mini_cv}</p>
+                )}
                 {candidate.biography && (
                   <p
                     style={{
