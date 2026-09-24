@@ -160,7 +160,7 @@ export function CandidateCard({
 
         <CandidateShare
           slug={candidate.slug}
-          name={candidate.ballot_name || candidate.name}
+          name={candidate.ballot_name && !/^\d+$/.test(candidate.ballot_name) ? candidate.ballot_name : candidate.name}
         />
       </div>
     </article>

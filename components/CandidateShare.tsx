@@ -11,7 +11,7 @@ export function CandidateShare({ slug, name }: Props) {
 
   function shareUrl() {
     const url = new URL(path, window.location.origin);
-    url.searchParams.set("mfb", "2");
+    url.searchParams.set("mfb", "3");
     return url.toString();
   }
 
