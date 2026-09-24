@@ -10,7 +10,9 @@ export function CandidateShare({ slug, name }: Props) {
   const caption = `Conheça o perfil de ${name}, candidato(a) indicado(a) pelo Movimento Família Brasileira:`;
 
   function shareUrl() {
-    return new URL(path, window.location.origin).toString();
+    const url = new URL(path, window.location.origin);
+    url.searchParams.set("mfb", "2");
+    return url.toString();
   }
 
   async function shareOther() {
