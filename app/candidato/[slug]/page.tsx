@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { BadgeCheck } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getPublicSharedCandidate, sharedCandidateName } from "@/lib/candidates/public-share";
@@ -1083,10 +1082,8 @@ export default async function CandidatePage({
             {/* JUSTIFICATIVA INSTITUCIONAL DO APOIO */}
 
             <section className="mfb-endorsement" aria-labelledby="mfb-endorsement-title">
-              <div className="mfb-endorsement-seal" aria-label="Selo de apoio do Movimento Família Brasileira">
-                <BadgeCheck size={52} strokeWidth={1.8} aria-hidden="true" />
-                <span>APOIADO<br />PELO MFB</span>
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="mfb-endorsement-seal" src="/selo-aprovacao-mfb.svg" alt="Aprovado pela Família Brasileira — selo institucional do Movimento Família Brasileira" width="150" height="150" />
               <div>
                 <p className="mfb-endorsement-label">NOTA DO MOVIMENTO FAMÍLIA BRASILEIRA</p>
                 <h2 id="mfb-endorsement-title">Por que apoiamos {publicName}?</h2>
