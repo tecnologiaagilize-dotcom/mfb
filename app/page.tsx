@@ -1,14 +1,16 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Header } from "@/components/Header";
+import { MotionEnhancements } from "@/components/MotionEnhancements";
 
 export default function Home() {
   return (
     <>
       <Header />
-      <main>
+      <main className="mfb-home">
+        <MotionEnhancements page="home" />
         <section className="hero">
-          <div className="container" style={{padding:"90px 0",display:"grid",gridTemplateColumns:"1.15fr .85fr",gap:50,alignItems:"center"}}>
+          <div className="container mfb-hero-grid" style={{padding:"90px 0",display:"grid",gridTemplateColumns:"1.15fr .85fr",gap:50,alignItems:"center"}}>
             <div>
               <span style={{display:"inline-block",padding:"7px 11px",border:"1px solid rgba(255,255,255,.25)",borderRadius:999,fontSize:12,fontWeight:800,letterSpacing:.6}}>
                 PORTAL INSTITUCIONAL · DESDE 2013
@@ -24,7 +26,7 @@ export default function Home() {
                 <Link href="/candidatos" className="btn btn-secondary">Candidatos 2026</Link>
               </div>
             </div>
-            <div style={{display:"flex",justifyContent:"center"}}>
+            <div className="mfb-hero-visual" style={{display:"flex",justifyContent:"center"}}>
               <Image src="/logo-mfb.png" alt="MFB" width={430} height={430} style={{objectFit:"contain"}} priority />
             </div>
           </div>

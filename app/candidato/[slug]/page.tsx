@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getPublicSharedCandidate, sharedCandidateName } from "@/lib/candidates/public-share";
 import { Header } from "@/components/Header";
 import { CandidateCertificate } from "@/components/CandidateCertificate";
+import { MotionEnhancements } from "@/components/MotionEnhancements";
 import { normalizeCertificateTemplate } from "@/lib/candidates/certificate-template";
 
 export const dynamic = "force-dynamic";
@@ -889,6 +890,7 @@ export default async function CandidatePage({
               "--profile-font": certificateTemplate.fontFamily === "serif" ? "Georgia,serif" : "Arial,sans-serif",
             } as CSSProperties}
           >
+            <MotionEnhancements page="profile" />
             <CandidateCertificate candidate={candidate} publicName={publicName} territory={territory} template={certificateTemplate} />
 
             <nav className="mfb-profile-nav" aria-label="Navegação do perfil">

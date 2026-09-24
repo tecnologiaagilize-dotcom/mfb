@@ -11,7 +11,7 @@ export function CandidateCard({
 
   return (
     <article
-      className="card"
+      className="card mfb-candidate-card"
       style={{
         overflow: "hidden",
         display: "flex",
