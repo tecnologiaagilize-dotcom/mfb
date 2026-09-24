@@ -161,6 +161,9 @@ export default function CandidateForm({
     endorsement_reason:
       initial?.endorsement_reason ?? "",
 
+    endorsement_issued_at:
+      initial?.endorsement_issued_at ?? "",
+
     instagram_url:
       initial?.instagram_url ?? "",
 
@@ -433,6 +436,7 @@ export default function CandidateForm({
 
       const {
         scope,
+        endorsement_issued_at,
         ...formData
       } = form;
 
@@ -469,6 +473,14 @@ export default function CandidateForm({
 
         verified_at:
           form.verified_at || null,
+
+        // Nos novos cadastros sem data informada, o banco usa a data da inclusão
+        // no horário de Brasília. Em cadastros existentes, a data é editável.
+        ...(initial?.id
+          ? { endorsement_issued_at: endorsement_issued_at || null }
+          : endorsement_issued_at
+            ? { endorsement_issued_at }
+            : {}),
 
         updated_at:
           new Date().toISOString(),
@@ -1144,6 +1156,16 @@ export default function CandidateForm({
               onChange={(e) => set("endorsement_reason", e.target.value)}
               style={{ marginTop: 10 }}
             />
+          </label>
+          <label style={{ display: "block", marginTop: 16, maxWidth: 340 }}>
+            <span style={labelStyle}>Data de emissão do certificado</span>
+            <input
+              className="field"
+              type="date"
+              value={form.endorsement_issued_at}
+              onChange={(e) => set("endorsement_issued_at", e.target.value)}
+            />
+            <FieldHelp>Informe a data efetiva da aprovação. Ela permanecerá fixa na página pública; não é substituída pela data de acesso.</FieldHelp>
           </label>
         </section>
       )}
