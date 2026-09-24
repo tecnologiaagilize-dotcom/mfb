@@ -101,7 +101,12 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
           }
           const tx=x+portraitWidth+23,availableWidth=w-portraitWidth-42;
           ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?40:28}px Arial`;ctx.fillText(person.cargo.toUpperCase(),tx,y+58,availableWidth);
-          ctx.fillStyle="#ffe22c";ctx.font=`900 ${row.length===1?150:105}px Arial`;ctx.fillText(person.number||"—",tx,y+188,availableWidth);
+          const number=person.number||"—";
+          const longNumber=number.length>=5;
+          let numberSize=longNumber ? (row.length===1?116:70) : (row.length===1?150:105);
+          ctx.font=`900 ${numberSize}px Arial`;
+          while(numberSize>32 && ctx.measureText(number).width>availableWidth){numberSize-=2;ctx.font=`900 ${numberSize}px Arial`;}
+          ctx.fillStyle="#ffe22c";ctx.fillText(number,tx,y+188);
           ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?47:30}px Arial`;ctx.fillText(displayName(person).toUpperCase(),tx,y+252,availableWidth);
         }
       }
@@ -136,6 +141,6 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     <section className="colinha-preview colinha-poster" aria-label="Prévia da colinha"><div className="colinha-preview-top">
       {photo ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={photo} alt="Sua foto" onError={()=>setError("Sua foto não pôde ser exibida. Escolha JPG, PNG ou WebP.")} /> : <div className="colinha-photo-placeholder">Sua foto aqui</div>}
       <div className="colinha-poster-heading"><h2>COLINHA</h2><strong>MINHA ESCOLHA</strong><p>{city ? `${city} · ` : ""}{state} · MFB</p></div>
-    </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}`}>{row.map(person=><div key={person.id} className="colinha-preview-row" style={{backgroundColor:cardColor(person,index)}}>{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" onLoad={event=>matchPhotoColor(person.id,event.currentTarget)} />}<div className="colinha-poster-text"><small>{person.cargo}</small><b>{person.number||"—"}</b><strong>{displayName(person)}</strong></div></div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><small>movimentofamiliabrasileira.com.br</small></footer></section></div>
+    </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}`}>{row.map(person=><div key={person.id} className="colinha-preview-row" style={{backgroundColor:cardColor(person,index)}}>{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" onLoad={event=>matchPhotoColor(person.id,event.currentTarget)} />}<div className="colinha-poster-text"><small>{person.cargo}</small><b className={(person.number?.length ?? 0)>=5 ? "colinha-number-long" : (person.number?.length ?? 0)>=4 ? "colinha-number-medium" : ""}>{person.number||"—"}</b><strong>{displayName(person)}</strong></div></div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><small>movimentofamiliabrasileira.com.br</small></footer></section></div>
   </>;
 }
