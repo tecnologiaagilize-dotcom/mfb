@@ -27,7 +27,7 @@ export async function generateMetadata({
   const title = `${name} | Candidatos indicados pelo MFB`;
   const description = `Conheça o perfil de ${name}, ${candidate.cargo} em ${candidate.state_uf}, indicado(a) pelo Movimento Família Brasileira.`;
   const url = `/candidato/${encodeURIComponent(candidate.slug)}`;
-  const image = `${url}/opengraph-image?mfb=4`;
+  const image = `${url}/opengraph-image?mfb=5`;
 
   return {
     title,
