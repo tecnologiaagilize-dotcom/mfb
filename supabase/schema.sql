@@ -13,6 +13,7 @@ create table if not exists public.candidates (
   biography text,
   proposals text,
   endorsement_reason text,
+  endorsement_issued_at date default ((now() at time zone 'America/Sao_Paulo')::date),
   instagram_url text,
   facebook_url text,
   youtube_url text,
