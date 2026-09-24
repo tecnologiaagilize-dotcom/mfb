@@ -10,6 +10,13 @@ export type SharedCandidate = {
   photo_url?: string | null;
 };
 
+export function sharedCandidateName(candidate: SharedCandidate): string {
+  const ballotName = candidate.ballot_name?.trim();
+  return ballotName && !/^\d+$/.test(ballotName)
+    ? ballotName
+    : candidate.name;
+}
+
 // Robôs de prévia de links acessam sem sessão. A consulta usa apenas
 // candidatos publicados e a mesma chave pública usada no site.
 export async function getPublicSharedCandidate(slug: string): Promise<SharedCandidate | null> {
@@ -20,16 +27,24 @@ export async function getPublicSharedCandidate(slug: string): Promise<SharedCand
   );
 
   const { data, error } = await supabase
+    .from("candidates_public")
+    .select("*")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .maybeSingle();
+
+  if (!error && data) return data;
+
+  const fallback = await supabase
     .from("candidates")
     .select("name, ballot_name, slug, cargo, state_uf, number, photo_url")
     .eq("slug", slug)
     .eq("status", "published")
     .maybeSingle();
 
-  if (error) {
-    console.error("Falha ao consultar candidato para prévia pública:", error.code, error.message);
-    return null;
+  if (fallback.error) {
+    console.error("Falha ao consultar candidato para prévia pública:", error?.code, fallback.error.code);
   }
 
-  return data;
+  return fallback.data;
 }
