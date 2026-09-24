@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { BadgeCheck } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getPublicSharedCandidate, sharedCandidateName } from "@/lib/candidates/public-share";
@@ -1079,6 +1080,24 @@ export default async function CandidatePage({
               </div>
             </div>
 
+            {/* JUSTIFICATIVA INSTITUCIONAL DO APOIO */}
+
+            <section className="mfb-endorsement" aria-labelledby="mfb-endorsement-title">
+              <div className="mfb-endorsement-seal" aria-label="Selo de apoio do Movimento Família Brasileira">
+                <BadgeCheck size={52} strokeWidth={1.8} aria-hidden="true" />
+                <span>APOIADO<br />PELO MFB</span>
+              </div>
+              <div>
+                <p className="mfb-endorsement-label">NOTA DO MOVIMENTO FAMÍLIA BRASILEIRA</p>
+                <h2 id="mfb-endorsement-title">Por que apoiamos {publicName}?</h2>
+                <p className="mfb-endorsement-reason">
+                  {candidate.endorsement_reason?.trim() ||
+                    "O Movimento Família Brasileira apoia esta candidatura por identificar afinidade com princípios que orientam sua atuação: valorização da família, proteção de crianças e adolescentes, liberdade de crença e responsabilidade na vida pública."}
+                </p>
+                <p className="mfb-endorsement-disclosure">Esta é uma manifestação institucional de apoio do MFB. Informações biográficas, propostas e registros de atuação estão apresentadas nas seções próprias deste perfil.</p>
+              </div>
+            </section>
+
             {/* SOBRE */}
 
             {hasProfile && (
@@ -1201,9 +1220,10 @@ export default async function CandidatePage({
                 >
                   Registros factuais cadastrados
                   com base nas fontes indicadas.
-                  A apresentação destes dados não
-                  constitui avaliação ou
-                  recomendação política.
+                  Estes registros documentais são
+                  apresentados separadamente da
+                  justificativa institucional de apoio
+                  indicada acima.
                 </p>
 
                 <div
