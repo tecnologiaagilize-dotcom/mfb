@@ -27,10 +27,9 @@ export function CandidateCertificate({ candidate, publicName, territory, templat
     {candidate.ballot_name && candidate.name !== candidate.ballot_name && <p className="mfb-certificate-civil-name">{candidate.name}</p>}
     <p className="mfb-certificate-meta">{candidate.cargo} · {territory}{candidate.party ? ` · ${candidate.party}` : ""}{candidate.number ? ` · Nº ${candidate.number}` : ""}</p>
   </div>;
-  const reason = <section className={`mfb-endorsement ${t.sealSide === "right" ? "mfb-seal-right" : ""}`} aria-label="Motivo do apoio" key="reason">
-    {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img className="mfb-endorsement-seal" src={t.sealUrl} alt="Selo institucional de aprovação do Movimento Família Brasileira" width={t.sealSize} height={t.sealSize} />
-    <div><h2>{t.endorsementHeading.replaceAll("{nome}", publicName)}</h2>
+  const reason = <section className={`mfb-endorsement ${t.showSeal ? `mfb-seal-${t.sealSide}` : "mfb-seal-hidden"}`} aria-label="Motivo do apoio">
+    {t.showSeal && /* eslint-disable-next-line @next/next/no-img-element */ <img className="mfb-endorsement-seal" src={t.sealUrl} alt="Selo institucional de aprovação do Movimento Família Brasileira" width={t.sealSize} height={t.sealSize} />}
+    <div className="mfb-endorsement-copy"><h2>{t.endorsementHeading.replaceAll("{nome}", publicName)}</h2>
       <p className="mfb-endorsement-reason">{candidate.endorsement_reason?.trim() || t.fallbackReason}</p>
       <p className="mfb-endorsement-disclosure">{t.disclosure}</p></div>
   </section>;
@@ -44,8 +43,9 @@ export function CandidateCertificate({ candidate, publicName, territory, templat
       <div className="mfb-certificate-photo-wrap"><div className="mfb-certificate-portrait">
         {candidate.photo_url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={candidate.photo_url} alt={publicName} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:`${candidate.photo_position_x ?? 50}% ${candidate.photo_position_y ?? 20}%`,transform:`scale(${candidate.photo_zoom ?? 1})`}} /> : <div className="mfb-certificate-photo-fallback">{publicName.charAt(0).toUpperCase()}</div>}
       </div></div>
-      <div className="mfb-certificate-content">{t.contentOrder === "identity-first" ? [identity, reason] : [reason, identity]}</div>
+      <div className="mfb-certificate-content">{identity}</div>
     </div>
+    {reason}
     <footer className="mfb-certificate-footer"><p className="mfb-certificate-date">{t.datePrefix}, {printedDate}</p>
       <div className="mfb-certificate-signatures" aria-label="Responsáveis institucionais pelo apoio">
         {[{name:t.signerOne,role:t.signerOneRole},{name:t.signerTwo,role:t.signerTwoRole}].map((person,index) => <div className="mfb-certificate-signatory" key={index}><span aria-hidden="true"/><strong>{person.name}</strong><small>{person.role}</small></div>)}

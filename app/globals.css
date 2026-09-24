@@ -228,3 +228,14 @@ button, input, select, textarea { font: inherit; }
 .mfb-profile-card .mfb-profile-nav a{color:var(--profile-accent,#145c3c);border-color:var(--profile-border,#dce9e0)}
 .mfb-profile-card .mfb-profile-section-title{color:var(--profile-accent,#193e2e);font-family:var(--profile-font,inherit)}
 .mfb-profile-card .mfb-profile-section-title::before{background:var(--profile-border,#caa74d)}
+
+/* Justificativa ocupa toda a largura do certificado; selo opcional. */
+.mfb-certificate>.mfb-endorsement{position:relative;display:block;margin-top:28px;padding:22px 0 6px;border-top:1px solid var(--cert-border,#ba8e47)}
+.mfb-certificate>.mfb-endorsement.mfb-seal-left,.mfb-certificate>.mfb-endorsement.mfb-seal-right{display:grid;grid-template-columns:minmax(0,var(--cert-seal-size,135px)) minmax(0,1fr);align-items:center;gap:18px}
+.mfb-certificate>.mfb-endorsement.mfb-seal-right{grid-template-columns:minmax(0,1fr) minmax(0,var(--cert-seal-size,135px))}
+.mfb-certificate>.mfb-endorsement.mfb-seal-right .mfb-endorsement-seal{order:2}
+.mfb-certificate>.mfb-endorsement.mfb-seal-above,.mfb-certificate>.mfb-endorsement.mfb-seal-below{display:flex;flex-direction:column;align-items:flex-start;gap:14px}
+.mfb-certificate>.mfb-endorsement.mfb-seal-below .mfb-endorsement-seal{order:2}
+.mfb-certificate>.mfb-endorsement .mfb-endorsement-copy{min-width:0;width:100%}
+.certificate-editor-controls input[type=checkbox]{width:20px;height:20px;accent-color:#087443}
+@media(max-width:620px){.mfb-certificate>.mfb-endorsement.mfb-seal-left,.mfb-certificate>.mfb-endorsement.mfb-seal-right{grid-template-columns:minmax(0,min(var(--cert-seal-size,135px),86px)) minmax(0,1fr)}.mfb-certificate>.mfb-endorsement.mfb-seal-right{grid-template-columns:minmax(0,1fr) minmax(0,min(var(--cert-seal-size,135px),86px))}.mfb-certificate>.mfb-endorsement .mfb-endorsement-seal{width:min(var(--cert-seal-size,135px),86px);height:min(var(--cert-seal-size,135px),86px)}}

@@ -3,7 +3,7 @@ export type CertificateTemplate = {
   fallbackReason: string; disclosure: string; datePrefix: string;
   signerOne: string; signerOneRole: string; signerTwo: string; signerTwoRole: string;
   logoUrl: string; sealUrl: string; photoSide: "left" | "right";
-  sealSide: "left" | "right"; contentOrder: "identity-first" | "reason-first";
+  showSeal: boolean; sealSide: "left" | "right" | "above" | "below"; contentOrder: "identity-first" | "reason-first";
   fontFamily: "serif" | "sans"; paperColor: string; borderColor: string;
   primaryColor: string; textColor: string; nameSize: number; bodySize: number;
   photoPercent: number; logoSize: number; sealSize: number;
@@ -16,7 +16,7 @@ export const defaultCertificateTemplate: CertificateTemplate = {
   datePrefix: "Brasília", signerOne: "Helen Pontes", signerOneRole: "Presidente · MFB",
   signerTwo: "Paulo Rocha", signerTwoRole: "Coordenador · MFB",
   logoUrl: "/logo-mfb.png", sealUrl: "/selo-aprovacao-mfb.svg",
-  photoSide: "left", sealSide: "left", contentOrder: "identity-first", fontFamily: "serif",
+  photoSide: "left", showSeal: false, sealSide: "left", contentOrder: "identity-first", fontFamily: "serif",
   paperColor: "#fffcf6", borderColor: "#ba8e47", primaryColor: "#14563d", textColor: "#202922",
   nameSize: 68, bodySize: 19, photoPercent: 32, logoSize: 64, sealSize: 135,
 };
@@ -36,7 +36,8 @@ export function normalizeCertificateTemplate(input: unknown): CertificateTemplat
     if ((url.startsWith("/") && !url.startsWith("//")) || /^https:\/\/[^\s]+$/i.test(url)) result[key] = url.slice(0, 1000);
   }
   if (data.photoSide === "right") result.photoSide = "right";
-  if (data.sealSide === "right") result.sealSide = "right";
+  if (data.showSeal === true) result.showSeal = true;
+  if (["left", "right", "above", "below"].includes(String(data.sealSide))) result.sealSide = data.sealSide as CertificateTemplate["sealSide"];
   if (data.contentOrder === "reason-first") result.contentOrder = "reason-first";
   if (data.fontFamily === "sans") result.fontFamily = "sans";
   return result;

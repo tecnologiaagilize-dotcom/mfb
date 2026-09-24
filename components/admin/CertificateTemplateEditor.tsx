@@ -35,10 +35,11 @@ export function CertificateTemplateEditor({ initial, sample }: { initial: Certif
         {text("disclosure", "Nota institucional", true)}{text("datePrefix", "Local da emissão")}
       </fieldset>
       <fieldset><legend>Responsáveis</legend>{text("signerOne", "Primeiro nome")}{text("signerOneRole", "Primeiro cargo")}{text("signerTwo", "Segundo nome")}{text("signerTwoRole", "Segundo cargo")}</fieldset>
-      <fieldset><legend>Imagens e posições</legend>{text("logoUrl", "Endereço da logomarca")}{text("sealUrl", "Endereço do selo")}
+      <fieldset><legend>Imagens e posições</legend>{text("logoUrl", "Endereço da logomarca")}
+        <label><span>Exibir selo no certificado</span><input type="checkbox" checked={template.showSeal} onChange={event => update("showSeal", event.target.checked)} /></label>
+        {text("sealUrl", "Endereço da imagem do selo (https:// ou /arquivo.svg)")}
         <label>Lado da foto<select value={template.photoSide} onChange={event => update("photoSide", event.target.value as CertificateTemplate["photoSide"])}><option value="left">Esquerda</option><option value="right">Direita</option></select></label>
-        <label>Lado do selo<select value={template.sealSide} onChange={event => update("sealSide", event.target.value as CertificateTemplate["sealSide"])}><option value="left">Esquerda</option><option value="right">Direita</option></select></label>
-        <label>Ordem do texto<select value={template.contentOrder} onChange={event => update("contentOrder", event.target.value as CertificateTemplate["contentOrder"])}><option value="identity-first">Candidato, depois apoio</option><option value="reason-first">Apoio, depois candidato</option></select></label>
+        <label>Lado do selo<select value={template.sealSide} onChange={event => update("sealSide", event.target.value as CertificateTemplate["sealSide"])}><option value="left">Esquerda</option><option value="right">Direita</option><option value="above">Acima do texto</option><option value="below">Abaixo do texto</option></select></label>
         {number("photoPercent", "Largura da foto", 22, 48)}{number("logoSize", "Tamanho da logomarca", 36, 100)}{number("sealSize", "Tamanho do selo", 70, 210)}
       </fieldset>
       <fieldset><legend>Tipografia e cores</legend><label>Família da fonte<select value={template.fontFamily} onChange={event => update("fontFamily", event.target.value as CertificateTemplate["fontFamily"])}><option value="serif">Clássica</option><option value="sans">Sem serifa</option></select></label>
