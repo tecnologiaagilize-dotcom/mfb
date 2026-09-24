@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Candidate } from "@/lib/types";
+import { CandidateShare } from "@/components/CandidateShare";
 
 export function CandidateCard({
   candidate,
@@ -156,6 +157,11 @@ export function CandidateCard({
         >
           Ver perfil
         </Link>
+
+        <CandidateShare
+          slug={candidate.slug}
+          name={candidate.ballot_name || candidate.name}
+        />
       </div>
     </article>
   );
