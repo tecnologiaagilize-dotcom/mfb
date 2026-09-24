@@ -28,6 +28,7 @@ export function CandidateCertificate({ candidate, publicName, territory, templat
     ? `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}` : "data de emissão a confirmar";
   const meta = [t.showCargo && candidate.cargo, t.showTerritory && territory,
     t.showParty && candidate.party, t.showNumber && candidate.number && `Nº ${candidate.number}`].filter(Boolean).join(" · ");
+  const signers = [{ name: t.signerOne.trim(), role: t.signerOneRole.trim() }, { name: t.signerTwo.trim(), role: t.signerTwoRole.trim() }].filter(person => person.name);
   const identity = <div className="mfb-certificate-identity" key="identity">
     {t.showKicker && <span className="mfb-certificate-kicker">{t.kicker}</span>}
     <h1>{publicName}</h1>
@@ -54,8 +55,8 @@ export function CandidateCertificate({ candidate, publicName, territory, templat
     </div>
     {reason}
     <footer className="mfb-certificate-footer">{t.showDate && <p className="mfb-certificate-date">{t.dateText.replaceAll("{local}", t.datePrefix).replaceAll("{data}", printedDate)}</p>}
-      {t.showSigners && <div className="mfb-certificate-signatures" aria-label="Responsáveis institucionais pelo apoio">
-        {[{name:t.signerOne,role:t.signerOneRole},{name:t.signerTwo,role:t.signerTwoRole}].map((person,index) => <div className="mfb-certificate-signatory" key={index}><span aria-hidden="true"/><strong>{person.name}</strong><small>{person.role}</small></div>)}
+      {t.showSigners && signers.length > 0 && <div className={`mfb-certificate-signatures ${signers.length === 1 ? "mfb-one-signatory" : ""}`} aria-label="Responsáveis institucionais pelo apoio">
+        {signers.map((person,index) => <div className="mfb-certificate-signatory" key={index}><span aria-hidden="true"/><strong>{person.name}</strong><small>{person.role}</small></div>)}
       </div>}
     </footer>
   </section>;

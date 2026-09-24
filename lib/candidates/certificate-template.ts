@@ -40,7 +40,11 @@ export function normalizeCertificateTemplate(input: unknown): CertificateTemplat
   const data = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {};
   const result = { ...defaultCertificateTemplate };
   const strings = ["brandText", "title", "kicker", "endorsementHeading", "fallbackReason", "disclosure", "datePrefix", "signerOne", "signerOneRole", "signerTwo", "signerTwoRole", "dateText"] as const;
-  for (const key of strings) if (typeof data[key] === "string") result[key] = data[key].trim().slice(0, key === "fallbackReason" ? 1800 : 350) || defaultCertificateTemplate[key];
+  for (const key of strings) if (typeof data[key] === "string") {
+    const value = data[key].trim().slice(0, key === "fallbackReason" ? 1800 : 350);
+    result[key] = ["signerOne", "signerOneRole", "signerTwo", "signerTwoRole"].includes(key)
+      ? value : value || defaultCertificateTemplate[key];
+  }
   const colors = ["paperColor", "borderColor", "primaryColor", "textColor"] as const;
   for (const key of colors) if (typeof data[key] === "string" && /^#[0-9a-fA-F]{6}$/.test(data[key])) result[key] = data[key];
   const sizes = { nameSize: [30, 90], bodySize: [14, 28], photoPercent: [22, 48], logoSize: [36, 100], sealSize: [70, 210], headerOrder: [1, 4], portraitOrder: [1, 4], reasonOrder: [1, 4], footerOrder: [1, 4], sectionGap: [0, 72] } as const;

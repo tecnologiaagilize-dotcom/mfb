@@ -16,6 +16,7 @@ export function Header() {
           <Link href="/#quem-somos">Quem Somos</Link>
           <Link href="/#historia">Nossa História</Link>
           <Link href="/#acoes">Nossas Ações</Link>
+          <Link href="/colinha">Minha colinha</Link>
           <Link href="/candidatos" style={{fontWeight:800,color:"#006c40"}}>Candidatos 2026</Link>
         <Link href="/entrar" style={{fontWeight:800,color:"#172033"}}>Entrar</Link>
           <Link href="/cadastro" className="btn btn-primary" style={{minHeight:40,padding:"0 14px",color:"white"}}>Faça parte do MFB</Link>
