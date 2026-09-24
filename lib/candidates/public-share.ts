@@ -8,6 +8,9 @@ export type SharedCandidate = {
   state_uf: string;
   number?: string | null;
   photo_url?: string | null;
+  photo_position_x?: number | null;
+  photo_position_y?: number | null;
+  photo_zoom?: number | null;
 };
 
 export function sharedCandidateName(candidate: SharedCandidate): string {
@@ -37,7 +40,7 @@ export async function getPublicSharedCandidate(slug: string): Promise<SharedCand
 
   const fallback = await supabase
     .from("candidates")
-    .select("name, ballot_name, slug, cargo, state_uf, number, photo_url")
+    .select("name, ballot_name, slug, cargo, state_uf, number, photo_url, photo_position_x, photo_position_y, photo_zoom")
     .eq("slug", slug)
     .eq("status", "published")
     .maybeSingle();
