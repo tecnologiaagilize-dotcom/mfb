@@ -196,24 +196,19 @@ function VerifiedBadge({
 function ContentSection({
   title,
   children,
+  id,
 }: {
   title: string;
   children: React.ReactNode;
+  id?: string;
 }) {
   return (
     <section
-      style={{
-        marginTop: 36,
-        paddingTop: 30,
-        borderTop: "1px solid #e4e7ec",
-      }}
+      id={id}
+      className="mfb-profile-section"
     >
       <h2
-        style={{
-          margin: "0 0 16px",
-          fontSize: 26,
-          color: "#101828",
-        }}
+        className="mfb-profile-section-title"
       >
         {title}
       </h2>
@@ -884,29 +879,33 @@ export default async function CandidatePage({
           </div>
 
           <div
-            className="card"
+            className="card mfb-profile-card"
             style={{
               padding: 28,
               overflow: "hidden",
             }}
           >
+            <section className="mfb-certificate" aria-labelledby="mfb-certificate-title">
+              <div className="mfb-certificate-heading">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo-mfb.png" alt="Movimento Família Brasileira" width="56" height="56" />
+                <div>
+                  <p>MOVIMENTO FAMÍLIA BRASILEIRA</p>
+                  <h2 id="mfb-certificate-title">Certificado de apoio</h2>
+                </div>
+                <span className="mfb-certificate-heading-rule" aria-hidden="true" />
+              </div>
+
             {/* CABEÇALHO */}
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "minmax(220px,280px) minmax(0,1fr)",
-                gap: 32,
-                alignItems: "start",
-              }}
-            >
+            <div className="mfb-certificate-layout">
               <div>
                 <div
+                  className="mfb-certificate-portrait"
                   style={{
                     width: "100%",
                     aspectRatio: "3 / 4",
-                    borderRadius: 16,
+                    borderRadius: 12,
                     overflow: "hidden",
                     background: "#edf8f2",
                     display: "flex",
@@ -1000,6 +999,23 @@ export default async function CandidatePage({
                     : ""}
                 </p>
 
+            {/* JUSTIFICATIVA INSTITUCIONAL DO APOIO */}
+
+            <section className="mfb-endorsement" aria-labelledby="mfb-endorsement-title">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="mfb-endorsement-seal" src="/selo-aprovacao-mfb.svg" alt="Aprovado pela Família Brasileira — selo institucional do Movimento Família Brasileira" width="150" height="150" />
+              <div>
+                <p className="mfb-endorsement-label">NOTA DO MOVIMENTO FAMÍLIA BRASILEIRA</p>
+                <h2 id="mfb-endorsement-title">Por que apoiamos {publicName}?</h2>
+                <p className="mfb-endorsement-reason">
+                  {candidate.endorsement_reason?.trim() ||
+                    "O Movimento Família Brasileira apoia esta candidatura por identificar afinidade com princípios que orientam sua atuação: valorização da família, proteção de crianças e adolescentes, liberdade de crença e responsabilidade na vida pública."}
+                </p>
+                <p className="mfb-endorsement-disclosure">Esta é uma manifestação institucional de apoio do MFB. Informações biográficas, propostas e registros de atuação estão apresentadas nas seções próprias deste perfil.</p>
+              </div>
+            </section>
+
+
                 {candidate.mini_cv && (
                   <p
                     style={{
@@ -1078,27 +1094,22 @@ export default async function CandidatePage({
                 )}
               </div>
             </div>
-
-            {/* JUSTIFICATIVA INSTITUCIONAL DO APOIO */}
-
-            <section className="mfb-endorsement" aria-labelledby="mfb-endorsement-title">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="mfb-endorsement-seal" src="/selo-aprovacao-mfb.svg" alt="Aprovado pela Família Brasileira — selo institucional do Movimento Família Brasileira" width="150" height="150" />
-              <div>
-                <p className="mfb-endorsement-label">NOTA DO MOVIMENTO FAMÍLIA BRASILEIRA</p>
-                <h2 id="mfb-endorsement-title">Por que apoiamos {publicName}?</h2>
-                <p className="mfb-endorsement-reason">
-                  {candidate.endorsement_reason?.trim() ||
-                    "O Movimento Família Brasileira apoia esta candidatura por identificar afinidade com princípios que orientam sua atuação: valorização da família, proteção de crianças e adolescentes, liberdade de crença e responsabilidade na vida pública."}
-                </p>
-                <p className="mfb-endorsement-disclosure">Esta é uma manifestação institucional de apoio do MFB. Informações biográficas, propostas e registros de atuação estão apresentadas nas seções próprias deste perfil.</p>
-              </div>
             </section>
+
+            <nav className="mfb-profile-nav" aria-label="Navegação do perfil">
+              {hasProfile && <a href="#sobre">Trajetória</a>}
+              {hasPoliticalContent && <a href="#propostas">Projeto e propostas</a>}
+              {hasActivity && <a href="#atuacao">Atuação documentada</a>}
+              {candidate.public_experience && <a href="#experiencia">Experiência</a>}
+              {publicOffices.length > 0 && <a href="#territorio">Presença</a>}
+              {(publicSources.length > 0 || candidate.source_url) && <a href="#fontes">Fontes</a>}
+              {candidate.video_url && <a href="#apresentacao">Vídeo</a>}
+            </nav>
 
             {/* SOBRE */}
 
             {hasProfile && (
-              <ContentSection title="Sobre">
+              <ContentSection id="sobre" title="Sobre">
                 {candidate.biography && (
                   <p
                     style={{
@@ -1117,7 +1128,7 @@ export default async function CandidatePage({
             {/* PROJETO E PROPOSTAS */}
 
             {hasPoliticalContent && (
-              <ContentSection title="Projeto e propostas">
+              <ContentSection id="propostas" title="Projeto e propostas">
                 <div
                   style={{
                     display: "grid",
@@ -1206,7 +1217,7 @@ export default async function CandidatePage({
             {/* ATUAÇÃO PÚBLICA */}
 
             {hasActivity && (
-              <ContentSection title="Atuação Pública documentada">
+              <ContentSection id="atuacao" title="Atuação Pública documentada">
                 <p
                   style={{
                     margin: "-5px 0 22px",
@@ -1474,7 +1485,7 @@ export default async function CandidatePage({
             {/* EXPERIÊNCIA */}
 
             {candidate.public_experience && (
-              <ContentSection title="Experiência pública informada">
+              <ContentSection id="experiencia" title="Experiência pública informada">
                 <p
                   style={{
                     margin: 0,
@@ -1491,7 +1502,7 @@ export default async function CandidatePage({
             {/* PRESENÇA TERRITORIAL */}
 
             {publicOffices.length > 0 && (
-              <ContentSection title="Presença territorial">
+              <ContentSection id="territorio" title="Presença territorial">
                 <p
                   style={{
                     margin: "-5px 0 20px",
@@ -1527,7 +1538,7 @@ export default async function CandidatePage({
             {/* FONTES */}
 
             {publicSources.length > 0 && (
-              <ContentSection title="Fontes e referências">
+              <ContentSection id="fontes" title="Fontes e referências">
                 <p
                   style={{
                     margin: "-5px 0 20px",
@@ -1563,7 +1574,7 @@ export default async function CandidatePage({
             {/* VÍDEO */}
 
             {candidate.video_url && (
-              <ContentSection title="Apresentação">
+              <ContentSection id="apresentacao" title="Apresentação">
                 <a
                   href={candidate.video_url}
                   target="_blank"
@@ -1579,7 +1590,7 @@ export default async function CandidatePage({
 
             {candidate.source_url &&
               publicSources.length === 0 && (
-                <ContentSection title="Fonte de referência">
+                <ContentSection id="fontes" title="Fonte de referência">
                   <p
                     style={{
                       margin: "0 0 12px",
