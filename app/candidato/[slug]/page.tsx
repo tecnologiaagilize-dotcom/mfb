@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { createClient } from "@/lib/supabase/server";
-import { getPublicSharedCandidate } from "@/lib/candidates/public-share";
+import { getPublicSharedCandidate, sharedCandidateName } from "@/lib/candidates/public-share";
 import { Header } from "@/components/Header";
 
 export const dynamic = "force-dynamic";
@@ -23,11 +23,11 @@ export async function generateMetadata({
     };
   }
 
-  const name = candidate.ballot_name || candidate.name;
+  const name = sharedCandidateName(candidate);
   const title = `${name} | Candidatos indicados pelo MFB`;
   const description = `Conheça o perfil de ${name}, ${candidate.cargo} em ${candidate.state_uf}, indicado(a) pelo Movimento Família Brasileira.`;
   const url = `/candidato/${encodeURIComponent(candidate.slug)}`;
-  const image = `${url}/opengraph-image?mfb=2`;
+  const image = `${url}/opengraph-image?mfb=3`;
 
   return {
     title,
