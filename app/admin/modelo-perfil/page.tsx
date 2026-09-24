@@ -12,7 +12,7 @@ export default async function TemplatePage() {
   if (staff?.role !== "admin") redirect("/admin");
   const [{ data: saved }, { data: candidates }] = await Promise.all([
     supabase.from("candidate_profile_templates").select("config").eq("template_key", "global").maybeSingle(),
-    supabase.from("candidates").select("name,ballot_name,cargo,party,number,photo_url,photo_position_x,photo_position_y,photo_zoom,endorsement_reason,endorsement_issued_at,state_uf").eq("status", "published").limit(1),
+    supabase.from("candidates").select("id,name,ballot_name,cargo,party,number,photo_url,photo_position_x,photo_position_y,photo_zoom,endorsement_reason,endorsement_issued_at,state_uf").eq("status", "published").limit(1),
   ]);
   const sample = candidates?.[0] ?? { name: "Nome da candidatura", ballot_name: null, cargo: "Cargo", party: "Partido", number: "000", photo_url: null, endorsement_reason: null, endorsement_issued_at: null, state_uf: "DF" };
   return <AdminShell email={user.email}>

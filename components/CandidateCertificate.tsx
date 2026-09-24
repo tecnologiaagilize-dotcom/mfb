@@ -11,6 +11,11 @@ export function CandidateCertificate({ candidate, publicName, territory, templat
   candidate: Candidate; publicName: string; territory: string; template: CertificateTemplate;
 }) {
   const style = {
+    "--cert-gap": `${t.sectionGap}px`,
+    "--cert-header-order": t.headerOrder, "--cert-portrait-order": t.portraitOrder,
+    "--cert-reason-order": t.reasonOrder, "--cert-footer-order": t.footerOrder,
+    "--cert-name-align": t.nameAlign, "--cert-date-align": t.dateAlign,
+
     "--cert-paper": t.paperColor, "--cert-border": t.borderColor,
     "--cert-primary": t.primaryColor, "--cert-text": t.textColor,
     "--cert-name-size": `${t.nameSize}px`, "--cert-body-size": `${t.bodySize}px`,
@@ -21,19 +26,21 @@ export function CandidateCertificate({ candidate, publicName, territory, templat
   const date = candidate.endorsement_issued_at;
   const printedDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date)
     ? `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}` : "data de emissão a confirmar";
+  const meta = [t.showCargo && candidate.cargo, t.showTerritory && territory,
+    t.showParty && candidate.party, t.showNumber && candidate.number && `Nº ${candidate.number}`].filter(Boolean).join(" · ");
   const identity = <div className="mfb-certificate-identity" key="identity">
-    <span className="mfb-certificate-kicker">{t.kicker}</span>
+    {t.showKicker && <span className="mfb-certificate-kicker">{t.kicker}</span>}
     <h1>{publicName}</h1>
-    {candidate.ballot_name && candidate.name !== candidate.ballot_name && <p className="mfb-certificate-civil-name">{candidate.name}</p>}
-    <p className="mfb-certificate-meta">{candidate.cargo} · {territory}{candidate.party ? ` · ${candidate.party}` : ""}{candidate.number ? ` · Nº ${candidate.number}` : ""}</p>
+    {t.showCivilName && candidate.ballot_name && candidate.name !== candidate.ballot_name && <p className="mfb-certificate-civil-name">{candidate.name}</p>}
+    {meta && <p className="mfb-certificate-meta">{meta}</p>}
   </div>;
   const reason = <section className={`mfb-endorsement ${t.showSeal ? `mfb-seal-${t.sealSide}` : "mfb-seal-hidden"}`} aria-label="Motivo do apoio">
     {t.showSeal && /* eslint-disable-next-line @next/next/no-img-element */ <img className="mfb-endorsement-seal" src={t.sealUrl} alt="Selo institucional de aprovação do Movimento Família Brasileira" width={t.sealSize} height={t.sealSize} />}
     <div className="mfb-endorsement-copy"><h2>{t.endorsementHeading.replaceAll("{nome}", publicName)}</h2>
       <p className="mfb-endorsement-reason">{candidate.endorsement_reason?.trim() || t.fallbackReason}</p>
-      <p className="mfb-endorsement-disclosure">{t.disclosure}</p></div>
+      {t.showDisclosure && <p className="mfb-endorsement-disclosure">{t.disclosure}</p>}</div>
   </section>;
-  return <section className={`mfb-certificate ${t.photoSide === "right" ? "mfb-photo-right" : ""}`} style={style} aria-label={t.title}>
+  return <section className={`mfb-certificate ${t.photoSide === "right" ? "mfb-photo-right" : ""} ${!t.showBorder ? "mfb-no-border" : ""} ${!t.showInnerBorder ? "mfb-no-inner-border" : ""} ${!t.showHeaderLine ? "mfb-no-header-line" : ""} ${!t.showIdentityLine ? "mfb-no-identity-line" : ""} ${!t.showReasonLine ? "mfb-no-reason-line" : ""} ${!t.showFooterLine ? "mfb-no-footer-line" : ""}`} style={style} aria-label={t.title}>
     <div className="mfb-certificate-heading">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={t.logoUrl} alt="Logomarca institucional" width={t.logoSize} height={t.logoSize} />
@@ -46,10 +53,10 @@ export function CandidateCertificate({ candidate, publicName, territory, templat
       <div className="mfb-certificate-content">{identity}</div>
     </div>
     {reason}
-    <footer className="mfb-certificate-footer"><p className="mfb-certificate-date">{t.datePrefix}, {printedDate}</p>
-      <div className="mfb-certificate-signatures" aria-label="Responsáveis institucionais pelo apoio">
+    <footer className="mfb-certificate-footer">{t.showDate && <p className="mfb-certificate-date">{t.dateText.replaceAll("{local}", t.datePrefix).replaceAll("{data}", printedDate)}</p>}
+      {t.showSigners && <div className="mfb-certificate-signatures" aria-label="Responsáveis institucionais pelo apoio">
         {[{name:t.signerOne,role:t.signerOneRole},{name:t.signerTwo,role:t.signerTwoRole}].map((person,index) => <div className="mfb-certificate-signatory" key={index}><span aria-hidden="true"/><strong>{person.name}</strong><small>{person.role}</small></div>)}
-      </div>
+      </div>}
     </footer>
   </section>;
 }
