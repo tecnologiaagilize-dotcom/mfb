@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-labelledby="title desc">
+  <title id="title">Aprovado pela Família Brasileira</title>
+  <desc id="desc">Selo institucional emitido pelo Movimento Família Brasileira</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1">
+      <stop stop-color="#095d3b"/>
+      <stop offset="1" stop-color="#087b4b"/>
+    </linearGradient>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#075237" flood-opacity=".2"/>
+    </filter>
+  </defs>
+  <circle cx="200" cy="200" r="187" fill="url(#bg)" filter="url(#shadow)"/>
+  <circle cx="200" cy="200" r="175" fill="none" stroke="#e6c768" stroke-width="4"/>
+  <circle cx="200" cy="200" r="157" fill="none" stroke="#ffffff" stroke-opacity=".75" stroke-width="1.5"/>
+  <path d="M128 121h144v125c0 48-39 80-72 94-33-14-72-46-72-94z" fill="#ffffff" stroke="#e6c768" stroke-width="7" stroke-linejoin="round"/>
+  <path d="m161 225 27 26 53-57" fill="none" stroke="#087443" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M50 113h300v77H50z" fill="#f5d47a"/>
+  <path d="M50 113h300v77H50z" fill="none" stroke="#ffffff" stroke-width="3"/>
+  <text x="200" y="142" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="27" font-weight="900" fill="#074a31" letter-spacing="1">APROVADO PELA</text>
+  <text x="200" y="173" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="23" font-weight="900" fill="#074a31" letter-spacing=".5">FAMÍLIA BRASILEIRA</text>
+  <text x="200" y="359" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="15" font-weight="800" fill="#ffffff" letter-spacing="1.2">SELO INSTITUCIONAL DO MFB</text>
+</svg>
