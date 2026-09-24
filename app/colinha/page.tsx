@@ -6,7 +6,16 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Minha colinha | Movimento Família Brasileira", description: "Monte e salve sua própria lista de candidatos publicados." };
 export default async function ColinhaPage() {
   const supabase = await createClient();
-  const { data } = await supabase.from("candidates_public").select("id,name,ballot_name,cargo,number,state_uf,city_name,photo_url,slug").eq("status", "published").order("name");
-  // The public view already restricts candidates to published profiles.
-  return <><Header /><main className="container colinha-page"><ColinhaBuilder candidates={data ?? []} /></main></>;
+  // Use the same published source as /candidatos. Asking the public view for a
+  // column that is absent from one deployment made the entire list disappear.
+  const { data, error } = await supabase.from("candidates").select("*").eq("status", "published").order("name");
+  if (error) console.error("Falha ao consultar candidatos publicados para colinha:", error.code, error.message);
+  const candidates = (data ?? []).map(item => ({
+    id: String(item.id), name: String(item.name ?? ""), ballot_name: item.ballot_name ?? null,
+    cargo: String(item.cargo ?? ""), number: item.number ?? null,
+    state_uf: String(item.state_uf ?? "").trim().toUpperCase(),
+    city_name: item.city_name ?? null, photo_url: item.photo_url ?? null,
+    slug: String(item.slug ?? ""),
+  }));
+  return <><Header /><main className="container colinha-page"><ColinhaBuilder candidates={candidates} loadError={Boolean(error)} /></main></>;
 }

@@ -5,8 +5,8 @@ import { STATES } from "@/lib/states";
 type PublicCandidate = { id: string; name: string; ballot_name: string | null; cargo: string; number: string | null; state_uf: string; city_name?: string | null; photo_url?: string | null; slug: string };
 const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 const displayName = (person: PublicCandidate) => person.ballot_name && !/^\d+$/.test(person.ballot_name) ? person.ballot_name : person.name;
-export function ColinhaBuilder({ candidates }: { candidates: PublicCandidate[] }) {
-  const [state, setState] = useState("DF");
+export function ColinhaBuilder({ candidates, loadError = false }: { candidates: PublicCandidate[]; loadError?: boolean }) {
+  const [state, setState] = useState(() => candidates.some(c => c.state_uf === "DF") ? "DF" : (candidates.find(c => c.state_uf !== "BR")?.state_uf ?? "DF"));
   const [city, setCity] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -78,7 +78,8 @@ export function ColinhaBuilder({ candidates }: { candidates: PublicCandidate[] }
       <label>Sua foto (opcional)<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event=>upload(event.target.files?.[0])} /></label>
       {photo && <button type="button" className="btn btn-secondary" onClick={()=>setPhoto(null)}>Remover foto</button>}
       <h2>Escolha os candidatos</h2>
-      {available.length===0 && <p>Não há candidatos publicados para esta localidade.</p>}
+      {loadError ? <p role="alert" className="colinha-error">Não foi possível carregar a lista de candidatos. Tente novamente mais tarde.</p>
+        : available.length===0 && <p>Não há candidatos publicados para esta localidade.</p>}
       <div className="colinha-options">{available.map(person=><label key={person.id} className="colinha-option"><input type="checkbox" checked={selected.includes(person.id)} onChange={()=>choose(person.id)} /><span><strong>{displayName(person)}</strong><small>{person.cargo} · {person.number || "Número não informado"}</small></span></label>)}</div>
       <button className="btn btn-primary" type="button" disabled={busy || !chosen.length} onClick={makeImage}>{busy?"Gerando…":"Compartilhar ou baixar PNG"}</button>
       {error && <p role="alert" className="colinha-error">{error}</p>}
