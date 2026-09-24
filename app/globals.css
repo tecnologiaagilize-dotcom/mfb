@@ -291,3 +291,15 @@ button, input, select, textarea { font: inherit; }
 .colinha-poster .colinha-poster-row:has(>.colinha-preview-row:only-child) .colinha-preview-row{min-height:175px;grid-template-columns:32% minmax(0,1fr)}
 .colinha-poster footer{background:linear-gradient(180deg,#ffe532,#e8bb19);color:#092d6c;display:grid;gap:3px;text-align:center;padding:16px}.colinha-poster footer strong{font-size:clamp(22px,4vw,46px);font-style:italic}.colinha-poster footer small{font-size:12px;color:#092d6c}
 @media(max-width:610px){.colinha-poster .colinha-preview-top{min-height:200px}.colinha-poster .colinha-preview-top img,.colinha-photo-placeholder{height:155px}.colinha-poster .colinha-preview-row{min-height:120px;grid-template-columns:32% minmax(0,1fr)}.colinha-poster .colinha-preview-row img{min-height:110px}.colinha-poster-text b{font-size:clamp(30px,8vw,55px)}}
+/* Ajustes de proporção solicitados no cartaz. */
+.colinha-poster-heading h2{margin:0 0 12px;padding:12px 18px;transform:none;box-shadow:8px 8px 0 #056735;font-size:clamp(26px,4vw,54px);max-width:100%;overflow:visible;white-space:nowrap;letter-spacing:-.04em}
+.colinha-poster .colinha-preview-row,.colinha-poster .colinha-poster-row:has(>.colinha-preview-row:only-child) .colinha-preview-row{grid-template-columns:44% minmax(0,1fr);min-height:195px;padding:5px;gap:10px}
+.colinha-poster .colinha-preview-row img{min-height:185px;object-position:center 20%}
+.colinha-poster-text small{font-size:clamp(13px,1.8vw,23px);line-height:1.1}
+.colinha-poster-text b{font-size:clamp(42px,7vw,100px);line-height:1}
+.colinha-poster-text strong{font-size:clamp(15px,2.15vw,31px)}
+.colinha-poster footer{padding:18px 16px}.colinha-poster footer small{font-size:16px;font-weight:800}
+.colinha-color-input{width:36px!important;height:36px!important;flex:none;padding:2px!important;cursor:pointer}
+@media(max-width:610px){.colinha-poster-heading h2{font-size:clamp(24px,7vw,42px);padding:7px 9px}.colinha-poster .colinha-preview-row,.colinha-poster .colinha-poster-row:has(>.colinha-preview-row:only-child) .colinha-preview-row{grid-template-columns:40% minmax(0,1fr);min-height:145px}.colinha-poster .colinha-preview-row img{min-height:135px}.colinha-poster-text b{font-size:clamp(35px,7.8vw,62px)}.colinha-poster-text small{font-size:clamp(10px,2.7vw,15px)}.colinha-poster-text strong{font-size:clamp(11px,3vw,17px)}}
+
+.colinha-option label{display:flex;align-items:center;gap:12px;min-width:0;flex:1;cursor:pointer}

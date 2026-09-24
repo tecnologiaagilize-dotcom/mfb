@@ -12,6 +12,23 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
   const [photo, setPhoto] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [cardColors, setCardColors] = useState<Record<string,string>>({});
+  const defaults=["#103d78","#2576b7","#073d88","#087846","#602893"];
+  function cardColor(person: PublicCandidate, rowIndex: number) { return cardColors[person.id] || defaults[Math.min(officeRank(person.cargo),defaults.length-1)] || defaults[rowIndex%defaults.length]; }
+  function matchPhotoColor(id: string, image: HTMLImageElement) {
+    if (cardColors[id]) return;
+    try {
+      const sample=document.createElement("canvas");sample.width=16;sample.height=16;
+      const context=sample.getContext("2d");if(!context)return;
+      context.drawImage(image,0,0,16,16);
+      const pixels=context.getImageData(1,1,4,4).data;
+      let red=0,green=0,blue=0,count=0;
+      for(let index=0;index<pixels.length;index+=4){if(pixels[index+3]<200)continue;red+=pixels[index];green+=pixels[index+1];blue+=pixels[index+2];count++;}
+      if(!count)return;
+      const channel=(value:number)=>Math.max(20,Math.min(135,Math.round(value/count*.66))).toString(16).padStart(2,"0");
+      setCardColors(old=>old[id]?old:{...old,[id]:`#${channel(red)}${channel(green)}${channel(blue)}`});
+    }catch{/* The palette remains editable when a remote host blocks pixel access. */}
+  }
   useEffect(() => () => { if (photo) URL.revokeObjectURL(photo); }, [photo]);
   const cityOptions = useMemo(() => [...new Set(candidates.filter(c => c.state_uf === state && c.city_name).map(c => c.city_name!))].sort((a,b) => a.localeCompare(b,"pt-BR")), [candidates,state]);
   const available = useMemo(() => candidates.filter(c => c.state_uf === "BR" || (c.state_uf === state && (!c.city_name || c.city_name === city))), [candidates,state,city]);
@@ -50,13 +67,13 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     setBusy(true); setError("");
     try {
       const canvas = document.createElement("canvas");
-      const width=1080, topHeight=390, rowHeight=242, bottomHeight=185;
+      const width=1080, topHeight=390, rowHeight=285, bottomHeight=100;
       canvas.width=width;canvas.height=topHeight+rowHeight*posterRows.length+bottomHeight;
       const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Seu navegador não permitiu gerar a imagem.");
       const background=ctx.createLinearGradient(0,0,width,canvas.height);
       background.addColorStop(0,"#007c4c");background.addColorStop(.3,"#092f71");background.addColorStop(1,"#f6c735");
       ctx.fillStyle=background;ctx.fillRect(0,0,width,canvas.height);
-      ctx.fillStyle="#ffd82a";ctx.save();ctx.translate(610,165);ctx.rotate(-.09);ctx.fillRect(-175,-82,660,182);ctx.restore();
+      ctx.fillStyle="#ffdf2b";ctx.fillRect(404,50,652,204);
       let supporter: HTMLImageElement;
       try { supporter=await loadImage(photo); }
       catch { throw new Error("Não foi possível abrir sua foto. Escolha JPG, PNG ou WebP compatível com seu navegador."); }
@@ -65,18 +82,17 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
       ctx.save();ctx.beginPath();ctx.roundRect(photoX,photoY,photoW,photoH,18);ctx.clip();
       ctx.drawImage(supporter,photoX+(photoW-supporter.width*crop)/2,photoY+(photoH-supporter.height*crop)/2,supporter.width*crop,supporter.height*crop);ctx.restore();
       ctx.strokeStyle="#fff";ctx.lineWidth=8;ctx.strokeRect(photoX,photoY,photoW,photoH);
-      ctx.fillStyle="#082c67";ctx.font="italic 900 100px Arial";ctx.fillText("COLINHA",385,170,645);
-      ctx.font="bold 38px Arial";ctx.fillText("MINHA ESCOLHA",404,224,595);
+      ctx.fillStyle="#082c67";ctx.font="italic 900 88px Arial";ctx.fillText("COLINHA",432,158,585);
+      ctx.font="bold 37px Arial";ctx.fillText("MINHA ESCOLHA",440,220,565);
       ctx.fillStyle="#fff";ctx.font="bold 24px Arial";ctx.fillText(`${city ? city + " · " : ""}${state} · Movimento Família Brasileira`,410,318,625);
-      let top=topHeight;
-      const colors=["#0a397b","#2383cc","#06347d","#007a47","#542894"];
+      const top=topHeight;
       for(const [rowIndex,row] of posterRows.entries()){
         const gap=8,boxW=(width-32-gap*(row.length-1))/row.length;
         for(const [column,person] of row.entries()){
           const x=16+column*(boxW+gap),y=top+rowIndex*rowHeight,w=boxW,h=rowHeight-8;
-          ctx.fillStyle=colors[rowIndex%colors.length];ctx.beginPath();ctx.roundRect(x,y,w,h,16);ctx.fill();
+          ctx.fillStyle=cardColor(person,rowIndex);ctx.beginPath();ctx.roundRect(x,y,w,h,16);ctx.fill();
           ctx.strokeStyle="#fff";ctx.lineWidth=4;ctx.stroke();
-          const portraitWidth=row.length===1?270:185;
+          const portraitWidth=row.length===1?370:230;
           if(person.photo_url){
             try {const portrait=await loadImage(person.photo_url);const ratio=Math.max(portraitWidth/portrait.width,(h-10)/portrait.height);
               ctx.save();ctx.beginPath();ctx.roundRect(x+5,y+5,portraitWidth,h-10,12);ctx.clip();
@@ -84,15 +100,14 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
             }catch{/* Keep a readable card when a photo host disallows browser drawing. */}
           }
           const tx=x+portraitWidth+23,availableWidth=w-portraitWidth-42;
-          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?35:25}px Arial`;ctx.fillText(person.cargo.toUpperCase(),tx,y+52,availableWidth);
-          ctx.fillStyle="#ffe22c";ctx.font=`900 ${row.length===1?128:86}px Arial`;ctx.fillText(person.number||"—",tx,y+154,availableWidth);
-          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?43:28}px Arial`;ctx.fillText(displayName(person).toUpperCase(),tx,y+204,availableWidth);
+          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?40:28}px Arial`;ctx.fillText(person.cargo.toUpperCase(),tx,y+58,availableWidth);
+          ctx.fillStyle="#ffe22c";ctx.font=`900 ${row.length===1?150:105}px Arial`;ctx.fillText(person.number||"—",tx,y+188,availableWidth);
+          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?47:30}px Arial`;ctx.fillText(displayName(person).toUpperCase(),tx,y+252,availableWidth);
         }
       }
-      const footerY=top+posterRows.length*rowHeight;
-      ctx.fillStyle="#ffe22c";ctx.save();ctx.translate(25,footerY+20);ctx.rotate(-.025);ctx.fillRect(0,0,width-50,107);ctx.restore();
-      ctx.fillStyle="#0c306f";ctx.font="italic bold 54px Arial";ctx.fillText("Minha colinha",75,footerY+94);
-      ctx.fillStyle="#fff";ctx.font="22px Arial";ctx.fillText("Confira os dados de cada candidatura antes de compartilhar.",44,canvas.height-25);
+      ctx.fillStyle="#ffdf2b";ctx.fillRect(0,canvas.height-bottomHeight,width,bottomHeight);
+      ctx.fillStyle="#092f72";ctx.font="bold 27px Arial";
+      ctx.fillText("movimentofamiliabrasileira.com.br",55,canvas.height-52);
       const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Não foi possível exportar a imagem.")),"image/png"));
       const file=new File([blob],"minha-colinha-mfb.png",{type:"image/png"});
       if (navigator.canShare?.({ files:[file] }) && navigator.share) {
@@ -114,13 +129,13 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
       <h2>Escolha os candidatos</h2>
       {loadError ? <p role="alert" className="colinha-error">Não foi possível carregar a lista de candidatos. Tente novamente mais tarde.</p>
         : available.length===0 && <p>Não há candidatos publicados para esta localidade.</p>}
-      <div className="colinha-options">{available.map(person=><label key={person.id} className="colinha-option"><input type="checkbox" checked={selected.includes(person.id)} onChange={()=>choose(person.id)} /><span><strong>{displayName(person)}</strong><small>{person.cargo} · {person.number || "Número não informado"}</small></span></label>)}</div>
+      <div className="colinha-options">{available.map(person=><div key={person.id} className="colinha-option"><label><input type="checkbox" checked={selected.includes(person.id)} onChange={()=>choose(person.id)} /><span><strong>{displayName(person)}</strong><small>{person.cargo} · {person.number || "Número não informado"}</small></span></label><input className="colinha-color-input" type="color" aria-label={`Cor do cartão de ${displayName(person)}`} value={cardColors[person.id] || defaults[Math.min(officeRank(person.cargo),4)]} onChange={event=>setCardColors(old=>({...old,[person.id]:event.target.value}))} /></div>)}</div>
       <button className="btn btn-primary" type="button" disabled={busy || !chosen.length || !photo} onClick={makeImage}>{busy?"Gerando…":"Compartilhar ou baixar PNG"}</button>
       {error && <p role="alert" className="colinha-error">{error}</p>}
     </section>
     <section className="colinha-preview colinha-poster" aria-label="Prévia da colinha"><div className="colinha-preview-top">
       {photo ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={photo} alt="Sua foto" onError={()=>setError("Sua foto não pôde ser exibida. Escolha JPG, PNG ou WebP.")} /> : <div className="colinha-photo-placeholder">Sua foto aqui</div>}
       <div className="colinha-poster-heading"><h2>COLINHA</h2><strong>MINHA ESCOLHA</strong><p>{city ? `${city} · ` : ""}{state} · MFB</p></div>
-    </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}`}>{row.map(person=><div key={person.id} className="colinha-preview-row">{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" />}<div className="colinha-poster-text"><small>{person.cargo}</small><b>{person.number||"—"}</b><strong>{displayName(person)}</strong></div></div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><strong>Minha colinha</strong><small>Confira os dados dos candidatos antes de compartilhar.</small></footer></section></div>
+    </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}`}>{row.map(person=><div key={person.id} className="colinha-preview-row" style={{backgroundColor:cardColor(person,index)}}>{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" onLoad={event=>matchPhotoColor(person.id,event.currentTarget)} />}<div className="colinha-poster-text"><small>{person.cargo}</small><b>{person.number||"—"}</b><strong>{displayName(person)}</strong></div></div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><small>movimentofamiliabrasileira.com.br</small></footer></section></div>
   </>;
 }
