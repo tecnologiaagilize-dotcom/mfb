@@ -101,6 +101,17 @@ button, input, select, textarea { font: inherit; }
 .state-shape { cursor: pointer; transition: fill .18s ease, stroke .18s ease; }
 .state-shape:hover { fill: #7bcf9f !important; stroke: #075d3b !important; }
 
+/* O card flutua sobre o mapa, mas as áreas vazias não interceptam o mouse. */
+.brazil-map-popover{position:absolute;top:12px;right:12px;z-index:30;width:360px;max-width:calc(100% - 24px);max-height:min(78vh,600px);overflow:auto;padding:18px;pointer-events:none;overscroll-behavior:contain}
+.brazil-map-popover-link,.brazil-map-popover-close{pointer-events:auto}
+.brazil-map-popover-link:focus-visible,.brazil-map-popover-close:focus-visible{outline:3px solid #f4c430;outline-offset:3px}
+.brazil-map-popover-close{display:none;min-width:40px;min-height:40px;border:0;border-radius:10px;background:#edf7f2;color:#075d3b;font-size:27px;line-height:1;cursor:pointer}
+@media (hover:none), (max-width:620px){
+  .brazil-map-popover{position:relative;top:auto;bottom:auto;left:auto;right:auto;width:100%;max-width:none;max-height:400px;margin-top:10px;padding:14px;pointer-events:auto;border-radius:16px}
+  .brazil-map-popover-close{display:block}
+  .brazil-map-popover-link{min-height:44px}
+}
+
 .badge {
   display: inline-flex;
   padding: 5px 9px;
