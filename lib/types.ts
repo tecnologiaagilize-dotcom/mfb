@@ -1,6 +1,7 @@
 export type Candidate = {
   id: string;
   name: string;
+  ballot_name?: string | null;
   slug: string;
 
   state_uf: string;
