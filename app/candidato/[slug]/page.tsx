@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getPublicSharedCandidate, sharedCandidateName } from "@/lib/candidates/public-share";
 import { Header } from "@/components/Header";
+import { CandidateCertificate } from "@/components/CandidateCertificate";
+import { normalizeCertificateTemplate } from "@/lib/candidates/certificate-template";
 
 export const dynamic = "force-dynamic";
 
@@ -810,6 +813,9 @@ export default async function CandidatePage({
     committees.length > 0 ||
     deliveries.length > 0;
 
+  const { data: templateRecord } = await supabase.from("candidate_profile_templates").select("config").eq("template_key", "global").maybeSingle();
+  const certificateTemplate = normalizeCertificateTemplate(templateRecord?.config);
+
   const publicName =
     candidate.ballot_name && !/^\d+$/.test(candidate.ballot_name.trim())
       ? candidate.ballot_name
@@ -878,91 +884,12 @@ export default async function CandidatePage({
             style={{
               padding: 28,
               overflow: "hidden",
-            }}
+              "--profile-accent": certificateTemplate.primaryColor,
+              "--profile-border": certificateTemplate.borderColor,
+              "--profile-font": certificateTemplate.fontFamily === "serif" ? "Georgia,serif" : "Arial,sans-serif",
+            } as CSSProperties}
           >
-            <section className="mfb-certificate" aria-labelledby="mfb-certificate-title">
-              <div className="mfb-certificate-heading">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-mfb.png" alt="Movimento Família Brasileira" width="56" height="56" />
-                <div>
-                  <p>MOVIMENTO FAMÍLIA BRASILEIRA</p>
-                  <h2 id="mfb-certificate-title">Certificado de apoio</h2>
-                </div>
-                <span className="mfb-certificate-heading-rule" aria-hidden="true" />
-              </div>
-
-            <div className="mfb-certificate-layout">
-              <div className="mfb-certificate-photo-wrap">
-                <div className="mfb-certificate-portrait">
-                  {candidate.photo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={candidate.photo_url}
-                      alt={publicName}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        objectPosition: `${candidate.photo_position_x ?? 50}% ${candidate.photo_position_y ?? 20}%`,
-                        transform: `scale(${candidate.photo_zoom ?? 1})`,
-                      }}
-                    />
-                  ) : (
-                    <div className="mfb-certificate-photo-fallback" aria-label="Foto não cadastrada">
-                      {publicName?.charAt(0)?.toUpperCase()}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="mfb-certificate-content">
-                <div className="mfb-certificate-identity">
-                  <span className="mfb-certificate-kicker">Certificado de apoio à candidatura</span>
-                  <h1>{publicName}</h1>
-                  {candidate.ballot_name && candidate.name && candidate.ballot_name !== candidate.name && (
-                    <p className="mfb-certificate-civil-name">{candidate.name}</p>
-                  )}
-                  <p className="mfb-certificate-meta">
-                    {candidate.cargo} · {territory}
-                    {candidate.party ? ` · ${candidate.party}` : ""}
-                    {candidate.number ? ` · Nº ${candidate.number}` : ""}
-                  </p>
-                </div>
-
-                <section className="mfb-endorsement" aria-labelledby="mfb-endorsement-title">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img className="mfb-endorsement-seal" src="/selo-aprovacao-mfb.svg" alt="Aprovado pela Família Brasileira — selo institucional do Movimento Família Brasileira" width="155" height="155" />
-                  <div>
-                    <h2 id="mfb-endorsement-title">Por que apoiamos {publicName}?</h2>
-                    <p className="mfb-endorsement-reason">
-                      {candidate.endorsement_reason?.trim() ||
-                        "O Movimento Família Brasileira apoia esta candidatura por identificar afinidade com princípios que orientam sua atuação: valorização da família, proteção de crianças e adolescentes, liberdade de crença e responsabilidade na vida pública."}
-                    </p>
-                    <p className="mfb-endorsement-disclosure">Manifestação institucional de apoio do MFB. A trajetória, as propostas e as fontes estão nas seções deste perfil.</p>
-                  </div>
-                </section>
-              </div>
-            </div>
-              <footer className="mfb-certificate-footer">
-                <p className="mfb-certificate-date">
-                  Brasília, {candidate.endorsement_issued_at
-                    ? formatDate(candidate.endorsement_issued_at)
-                    : "data de emissão a confirmar"}
-                </p>
-                <div className="mfb-certificate-signatures" aria-label="Responsáveis institucionais pelo apoio">
-                  <div className="mfb-certificate-signatory">
-                    <span aria-hidden="true" />
-                    <strong>Helen Pontes</strong>
-                    <small>Presidente · MFB</small>
-                  </div>
-                  <div className="mfb-certificate-signatory">
-                    <span aria-hidden="true" />
-                    <strong>Paulo Rocha</strong>
-                    <small>Coordenador · MFB</small>
-                  </div>
-                </div>
-              </footer>
-            </section>
+            <CandidateCertificate candidate={candidate} publicName={publicName} territory={territory} template={certificateTemplate} />
 
             <nav className="mfb-profile-nav" aria-label="Navegação do perfil">
               {hasProfile && <a href="#sobre">Trajetória</a>}
