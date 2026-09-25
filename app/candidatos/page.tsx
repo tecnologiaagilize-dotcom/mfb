@@ -19,7 +19,6 @@ export default async function CandidatesPage() {
     .from("candidates")
     .select("*")
     .eq("status", "published")
-    .order("cargo_rank", { ascending: true })
     .order("display_order", { ascending: true })
     .order("name", { ascending: true });
 
