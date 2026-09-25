@@ -27,7 +27,8 @@ export class SenadoApiError extends Error {
 
 function buildUrl(path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `${SENADO_API_BASE}${normalizedPath}`;
+  // O sufixo explicita JSON; sem ele alguns recursos do Senado retornam XML.
+  return `${SENADO_API_BASE}${normalizedPath}.json`;
 }
 
 async function request(path: string): Promise<SenadoPayload> {
@@ -123,6 +124,10 @@ export function obterSenador(
   return request(
     `/senador/${encodeURIComponent(String(codigo))}`
   );
+}
+
+export function listarSenadoresEmExercicio(): Promise<SenadoPayload> {
+  return request("/senador/lista/atual");
 }
 
 export function obterMandatosSenador(

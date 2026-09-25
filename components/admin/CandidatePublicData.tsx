@@ -583,13 +583,6 @@ export default function CandidatePublicData({
     ) || null;
 
   async function handleCamaraSync() {
-    if (!camaraIdentity) {
-      setError(
-        "Vincule primeiro a identidade do candidato na Câmara dos Deputados."
-      );
-      return;
-    }
-
     const confirmed = window.confirm(
       "Executar a sincronização manual com a Câmara dos Deputados? Os registros coletados irão para a fila administrativa e não serão publicados automaticamente."
     );
@@ -610,8 +603,8 @@ export default function CandidatePublicData({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            externalIdentityId: camaraIdentity.id,
-            deputadoId: camaraIdentity.external_id,
+            externalIdentityId: camaraIdentity?.id || null,
+            deputadoId: camaraIdentity?.external_id || null,
           }),
         }
       );
@@ -640,6 +633,10 @@ export default function CandidatePublicData({
         payload.message ||
           "Sincronização da Câmara concluída. Os dados permanecem sujeitos à revisão administrativa."
       );
+      const camaraErrors = payload.result?.errorMessages;
+      if (Array.isArray(camaraErrors) && camaraErrors.length > 0) {
+        setError(`Coleta parcial da Câmara: ${camaraErrors.slice(0, 3).join(" | ")}`);
+      }
 
       await loadData();
     } catch (err: any) {
@@ -663,13 +660,6 @@ export default function CandidatePublicData({
     ) || null;
 
   async function handleSenadoSync() {
-    if (!senadoIdentity) {
-      setError(
-        "Vincule primeiro a identidade do candidato no Senado Federal."
-      );
-      return;
-    }
-
     const confirmed = window.confirm(
       "Executar a sincronização manual com o Senado Federal? Os registros coletados irão para a fila administrativa e não serão publicados automaticamente."
     );
@@ -690,8 +680,8 @@ export default function CandidatePublicData({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            externalIdentityId: senadoIdentity.id,
-            senadorId: senadoIdentity.external_id,
+            externalIdentityId: senadoIdentity?.id || null,
+            senadorId: senadoIdentity?.external_id || null,
           }),
         }
       );
@@ -720,6 +710,10 @@ export default function CandidatePublicData({
         payload.message ||
           "Sincronização do Senado concluída. Os dados permanecem sujeitos à revisão administrativa."
       );
+      const senadoErrors = payload.result?.errorMessages;
+      if (Array.isArray(senadoErrors) && senadoErrors.length > 0) {
+        setError(`Coleta parcial do Senado: ${senadoErrors.slice(0, 3).join(" | ")}`);
+      }
 
       await loadData();
     } catch (err: any) {
@@ -1142,7 +1136,7 @@ export default function CandidatePublicData({
                 maxWidth: 720,
               }}
             >
-              Sincronização manual da fonte oficial vinculada.
+              Busca uma amostra recente na fonte oficial da Câmara.
               Os registros recebidos permanecem na fila de
               conferência antes de eventual incorporação à
               Atuação Pública.
@@ -1154,14 +1148,13 @@ export default function CandidatePublicData({
             className="btn btn-primary"
             disabled={
               syncingCamara ||
-              !camaraProvider ||
-              !camaraIdentity
+              !camaraProvider
             }
             onClick={() => void handleCamaraSync()}
             title={
               camaraIdentity
                 ? "Executar sincronização manual da Câmara"
-                : "Vincule primeiro a identidade da Câmara"
+                : "Localizar pelo nome e UF e sincronizar"
             }
           >
             {syncingCamara ? (
@@ -1206,8 +1199,8 @@ export default function CandidatePublicData({
               lineHeight: 1.6,
             }}
           >
-            Para habilitar a sincronização, crie abaixo um
-            vínculo com <strong>{camaraProvider.name}</strong>.
+            Ao sincronizar, o MFB tentará identificar o deputado pelo nome e UF.
+            Se não houver correspondência única, informe o código oficial no vínculo abaixo.
           </div>
         ) : (
           <>
@@ -1340,7 +1333,7 @@ export default function CandidatePublicData({
                 maxWidth: 720,
               }}
             >
-              Sincronização manual da fonte oficial vinculada.
+              Busca dados na fonte oficial do Senado.
               Os registros recebidos permanecem na fila de
               conferência antes de eventual incorporação à
               Atuação Pública.
@@ -1352,14 +1345,13 @@ export default function CandidatePublicData({
             className="btn btn-primary"
             disabled={
               syncingSenado ||
-              !senadoProvider ||
-              !senadoIdentity
+              !senadoProvider
             }
             onClick={() => void handleSenadoSync()}
             title={
               senadoIdentity
                 ? "Executar sincronização manual do Senado"
-                : "Vincule primeiro a identidade do Senado"
+                : "Localizar pelo nome e UF e sincronizar"
             }
           >
             {syncingSenado ? (
@@ -1405,10 +1397,8 @@ export default function CandidatePublicData({
               lineHeight: 1.6,
             }}
           >
-            Para habilitar a sincronização, crie abaixo um
-            vínculo com <strong>{senadoProvider.name}</strong>{" "}
-            e informe como ID externo o código parlamentar
-            oficial do Senado.
+            Ao sincronizar, o MFB tentará identificar o senador em exercício pelo nome e UF.
+            Se não houver correspondência única, informe o código parlamentar oficial no vínculo abaixo.
           </div>
         ) : (
           <>

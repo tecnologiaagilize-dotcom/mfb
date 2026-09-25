@@ -281,6 +281,8 @@ export async function POST(
             candidate.ballot_name ||
             candidate.name,
 
+          candidateFullName: candidate.name,
+
           stateUf:
             candidate.state_uf ||
             null,

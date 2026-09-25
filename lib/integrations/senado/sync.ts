@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 
 import {
   SENADO_PROVIDER_CODE,
+  listarSenadoresEmExercicio,
   obterSenador,
   obterMandatosSenador,
   obterComissoesSenador,
@@ -21,6 +22,7 @@ import {
   type SenadoNormalizationContext,
   type MfbNormalizedPublicRecord,
 } from "./normalizers";
+import { uniqueOfficialIdentity } from "../official-identity";
 
 /* ============================================================
    TIPOS
@@ -34,6 +36,7 @@ type SyncOptions = {
   senadorId?: string | number | null;
 
   candidateName?: string | null;
+  candidateFullName?: string | null;
 
   stateUf?: string | null;
 };
@@ -1353,14 +1356,14 @@ export async function syncSenadoCandidate(
       supabase
     );
 
-  const identity =
+  let identity =
     await getExternalIdentity(
       supabase,
       provider.id,
       options
     );
 
-  const senadorId =
+  let senadorId =
     options.senadorId
       ? String(
           options.senadorId
@@ -1372,9 +1375,35 @@ export async function syncSenadoCandidate(
         : null;
 
   if (!senadorId) {
-    throw new Error(
-      "O candidato ainda não possui identificação externa da Senado."
-    );
+    const roster = await listarSenadoresEmExercicio();
+    const root = roster.ListaParlamentarEmExercicio as Record<string, unknown> | undefined;
+    const group = root?.Parlamentares as Record<string, unknown> | undefined;
+    const raw = group?.Parlamentar;
+    const people = (Array.isArray(raw) ? raw : raw ? [raw] : []) as Record<string, unknown>[];
+    const parsed = people.map((person) => {
+      const info = (person.IdentificacaoParlamentar || {}) as Record<string, unknown>;
+      return {
+        id: String(info.CodigoParlamentar || ""),
+        names: [String(info.NomeParlamentar || ""), String(info.NomeCompletoParlamentar || person.NomeCompletoParlamentar || "")],
+        stateUf: String(info.UfParlamentar || person.UfParlamentar || ""),
+      };
+    }).filter((person) => person.id);
+    const match = uniqueOfficialIdentity(parsed,
+      [options.candidateFullName, options.candidateName], options.stateUf);
+    if (!match) {
+      throw new Error("Não foi encontrado um único senador em exercício com nome exato e UF correspondente. Confira o identificador oficial antes de vincular.");
+    }
+    senadorId = match.id;
+    const { data, error } = await supabase.from("candidate_external_identities")
+      .insert({ candidate_id: options.candidateId, provider_id: provider.id,
+        external_id: match.id, external_name: match.names[0] || null,
+        external_url: `https://www25.senado.leg.br/web/senadores/senador/-/perfil/${match.id}`,
+        verification_status: "verified", verified_at: new Date().toISOString(),
+        metadata: { matched_automatically: true, match_rule: "exact_name_and_uf" } })
+      .select("id,candidate_id,provider_id,external_id,external_name,external_url,verification_status")
+      .single();
+    if (error || !data) throw new Error(`Não foi possível salvar o vínculo do Senado: ${error?.message || "erro desconhecido"}`);
+    identity = data as ExternalIdentityRow;
   }
 
   const incrementalWindow =

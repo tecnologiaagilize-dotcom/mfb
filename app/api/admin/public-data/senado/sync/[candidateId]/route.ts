@@ -105,6 +105,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       externalIdentityId,
       senadorId,
       candidateName: candidate.ballot_name || candidate.name,
+      candidateFullName: candidate.name,
       stateUf: candidate.state_uf || null,
     });
 

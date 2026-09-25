@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 
 import {
   CAMARA_PROVIDER_CODE,
+  buscarDeputados,
   obterDeputado,
   obterHistoricoDeputado,
   obterMandatosExternos,
@@ -27,6 +28,7 @@ import {
   type CamaraNormalizationContext,
   type MfbNormalizedPublicRecord,
 } from "./normalizers";
+import { uniqueOfficialIdentity } from "../official-identity";
 
 /* ============================================================
    TIPOS
@@ -40,6 +42,7 @@ type SyncOptions = {
   deputadoId?: string | number | null;
 
   candidateName?: string | null;
+  candidateFullName?: string | null;
 
   stateUf?: string | null;
 };
@@ -1285,6 +1288,8 @@ async function collectCamaraRecords(
     MfbNormalizedPublicRecord[] = [];
 
   const errors: string[] = [];
+  // Uma requisição administrativa precisa caber no tempo de execução da função.
+  const deadline = Date.now() + 25_000;
 
   /*
    * PERFIL
@@ -1427,12 +1432,13 @@ async function collectCamaraRecords(
             "id",
         },
         {
-          maxPages: 10,
-          maxRecords: 500,
+          maxPages: 1,
+          maxRecords: 8,
         }
       );
 
     for (const proposicao of proposicoes) {
+      if (Date.now() >= deadline) break;
       try {
         const proposicaoId =
           proposicao?.id;
@@ -1542,12 +1548,13 @@ async function collectCamaraRecords(
             "dataHoraRegistro",
         },
         {
-          maxPages: 10,
-          maxRecords: 500,
+          maxPages: 1,
+          maxRecords: 12,
         }
       );
 
     for (const votacao of votacoes) {
+      if (Date.now() >= deadline) break;
       try {
         const votacaoRecord =
           votacao as Record<
@@ -1642,14 +1649,14 @@ export async function syncCamaraCandidate(
       supabase
     );
 
-  const identity =
+  let identity =
     await getExternalIdentity(
       supabase,
       provider.id,
       options
     );
 
-  const deputadoId =
+  let deputadoId =
     options.deputadoId
       ? String(
           options.deputadoId
@@ -1661,9 +1668,31 @@ export async function syncCamaraCandidate(
         : null;
 
   if (!deputadoId) {
-    throw new Error(
-      "O candidato ainda não possui identificação externa da Câmara."
+    const names = [...new Set([options.candidateFullName, options.candidateName].filter((name): name is string => Boolean(name?.trim())))];
+    const results = await Promise.all(names.map((nome) =>
+      buscarDeputados({ nome, siglaUf: options.stateUf || undefined, itens: 100 })
+    ));
+    const people = [...new Map(results.flatMap((result) => result.dados || [])
+      .map((person) => [person.id, person])).values()];
+    const match = uniqueOfficialIdentity(
+      people.map((person) => ({
+        id: String(person.id), names: [person.nome || ""], stateUf: person.siglaUf || "",
+      })), names, options.stateUf
     );
+    if (!match) {
+      throw new Error("Não foi encontrado um único deputado com nome exato e UF correspondente. Confira o identificador oficial antes de vincular.");
+    }
+    deputadoId = match.id;
+    const { data, error } = await supabase.from("candidate_external_identities")
+      .insert({ candidate_id: options.candidateId, provider_id: provider.id,
+        external_id: match.id, external_name: people.find((p) => String(p.id) === match.id)?.nome || null,
+        external_url: `https://www.camara.leg.br/deputados/${match.id}`,
+        verification_status: "verified", verified_at: new Date().toISOString(),
+        metadata: { matched_automatically: true, match_rule: "exact_name_and_uf" } })
+      .select("id,candidate_id,provider_id,external_id,external_name,external_url,verification_status")
+      .single();
+    if (error || !data) throw new Error(`Não foi possível salvar o vínculo da Câmara: ${error?.message || "erro desconhecido"}`);
+    identity = data as ExternalIdentityRow;
   }
 
   const incrementalWindow =
