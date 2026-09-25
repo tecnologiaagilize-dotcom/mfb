@@ -8,6 +8,7 @@ import { BrazilMap } from "@/components/BrazilMap";
 
 import { STATES } from "@/lib/states";
 import type { Candidate } from "@/lib/types";
+import { cargoRank } from "@/lib/candidates/cargo-order";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function CandidatesPage() {
     .from("candidates")
     .select("*")
     .eq("status", "published")
+    .order("cargo_rank", { ascending: true })
     .order("display_order", { ascending: true })
     .order("name", { ascending: true });
 
@@ -26,6 +28,8 @@ export default async function CandidatesPage() {
 
   function sortByDisplayOrder(list: Candidate[]) {
     return [...list].sort((a, b) => {
+      const rankDifference = cargoRank(a.cargo) - cargoRank(b.cargo);
+      if (rankDifference !== 0) return rankDifference;
       const orderA = Number((a as Candidate & { display_order?: number }).display_order ?? 1000);
       const orderB = Number((b as Candidate & { display_order?: number }).display_order ?? 1000);
       if (orderA !== orderB) return orderA - orderB;

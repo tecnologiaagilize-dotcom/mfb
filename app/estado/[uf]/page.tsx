@@ -4,6 +4,7 @@ import { Header } from "@/components/Header";
 import { CandidateCard } from "@/components/CandidateCard";
 import { stateName } from "@/lib/states";
 import { notFound } from "next/navigation";
+import { cargoRank } from "@/lib/candidates/cargo-order";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +19,13 @@ export default async function StatePage({ params }: { params: Promise<{uf:string
     .from("candidates_public")
     .select("*")
     .eq("state_uf", upper)
-    .eq("status", "published")
-    .order("cargo")
-    .order("name");
+    .eq("status", "published");
 
-  const candidates = data ?? [];
+  const candidates = [...(data ?? [])].sort((a, b) =>
+    cargoRank(a.cargo) - cargoRank(b.cargo) ||
+    Number(a.display_order ?? 1000) - Number(b.display_order ?? 1000) ||
+    (a.ballot_name || a.name).localeCompare(b.ballot_name || b.name, "pt-BR", { sensitivity: "base" })
+  );
 
   return (
     <>

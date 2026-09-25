@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/browser";
+import { cargoRank } from "@/lib/candidates/cargo-order";
 
 type CandidateItem = {
   id: string;
@@ -38,10 +39,10 @@ export default function CandidateOrderManager({
 
   /*
    * Publicados aparecem primeiro,
-   * seguindo a ordem manual.
+   * agrupados por cargo e seguindo a ordem manual dentro do grupo.
    *
    * Rascunhos aparecem depois,
-   * em ordem alfabética.
+   * agrupados por cargo e em ordem alfabética.
    */
   const initialItems = useMemo(() => {
     const published = candidates
@@ -50,6 +51,8 @@ export default function CandidateOrderManager({
           candidate.status === "published"
       )
       .sort((a, b) => {
+        const rankDifference = cargoRank(a.cargo) - cargoRank(b.cargo);
+        if (rankDifference !== 0) return rankDifference;
         const orderA = Number(
           a.display_order ?? 1000
         );
@@ -79,7 +82,7 @@ export default function CandidateOrderManager({
           candidate.status !== "published"
       )
       .sort((a, b) =>
-        (
+        cargoRank(a.cargo) - cargoRank(b.cargo) || (
           a.ballot_name || a.name
         ).localeCompare(
           b.ballot_name || b.name,
@@ -159,6 +162,11 @@ export default function CandidateOrderManager({
       targetIndex >=
         published.length
     ) {
+      return;
+    }
+
+    // As setas mudam a posição somente dentro do cargo disputado.
+    if (cargoRank(published[index].cargo) !== cargoRank(published[targetIndex].cargo)) {
       return;
     }
 
@@ -476,12 +484,13 @@ export default function CandidateOrderManager({
 
                 const isFirst =
                   published &&
-                  position === 1;
+                  (position === 1 ||
+                    cargoRank(publishedItems[position! - 2]?.cargo) !== cargoRank(candidate.cargo));
 
                 const isLast =
                   published &&
-                  position ===
-                    publishedItems.length;
+                  (position === publishedItems.length ||
+                    cargoRank(publishedItems[position!]?.cargo) !== cargoRank(candidate.cargo));
 
                 const objectPositionX =
                   Number(
