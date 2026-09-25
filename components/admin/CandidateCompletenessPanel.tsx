@@ -83,6 +83,9 @@ export default function CandidateCompletenessPanel({
   const [error, setError] =
     useState("");
 
+  const [warning, setWarning] =
+    useState("");
+
   const [reloadKey, setReloadKey] =
     useState(0);
 
@@ -92,6 +95,7 @@ export default function CandidateCompletenessPanel({
     async function load() {
       setLoading(true);
       setError("");
+      setWarning("");
 
       try {
         const supabase = createClient();
@@ -176,10 +180,6 @@ export default function CandidateCompletenessPanel({
           throw candidateResult.error;
         }
 
-        if (sourcesResult.error) {
-          throw sourcesResult.error;
-        }
-
         const activityResults = [
           positionsResult,
           propositionsResult,
@@ -188,14 +188,18 @@ export default function CandidateCompletenessPanel({
           deliveriesResult,
         ];
 
-        for (const result of activityResults) {
-          if (result.error) {
-            throw result.error;
-          }
+        const optionalErrors = [sourcesResult, ...activityResults]
+          .map((result) => result.error)
+          .filter(Boolean);
+
+        if (optionalErrors.length > 0) {
+          setWarning(
+            "Parte dos dados documentais está indisponível. O perfil foi calculado, mas fontes e atuação podem aparecer como pendentes até a atualização do banco."
+          );
         }
 
         const activities = activityResults.flatMap(
-          (result) => result.data || []
+          (result) => result.error ? [] : (result.data || [])
         );
 
         const verifiedActivities =
@@ -482,6 +486,11 @@ export default function CandidateCompletenessPanel({
 
   return (
     <div className="space-y-5">
+      {warning && (
+        <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          {warning}
+        </p>
+      )}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div>
