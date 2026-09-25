@@ -1,14 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import type { CSSProperties } from "react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getPublicSharedCandidate, sharedCandidateName } from "@/lib/candidates/public-share";
 import { Header } from "@/components/Header";
-import { CandidateCertificate } from "@/components/CandidateCertificate";
 import { MotionEnhancements } from "@/components/MotionEnhancements";
-import { normalizeCertificateTemplate } from "@/lib/candidates/certificate-template";
 
 export const dynamic = "force-dynamic";
 
@@ -814,9 +811,6 @@ export default async function CandidatePage({
     committees.length > 0 ||
     deliveries.length > 0;
 
-  const { data: templateRecord } = await supabase.from("candidate_profile_templates").select("config").eq("template_key", "global").maybeSingle();
-  const certificateTemplate = normalizeCertificateTemplate(templateRecord?.config);
-
   const publicName =
     candidate.ballot_name && !/^\d+$/.test(candidate.ballot_name.trim())
       ? candidate.ballot_name
@@ -885,13 +879,38 @@ export default async function CandidatePage({
             style={{
               padding: 28,
               overflow: "hidden",
-              "--profile-accent": certificateTemplate.primaryColor,
-              "--profile-border": certificateTemplate.borderColor,
-              "--profile-font": certificateTemplate.fontFamily === "serif" ? "Georgia,serif" : "Arial,sans-serif",
-            } as CSSProperties}
+            }}
           >
             <MotionEnhancements page="profile" />
-            <CandidateCertificate candidate={candidate} publicName={publicName} territory={territory} template={certificateTemplate} />
+            <header className="mfb-candidate-header">
+              <div className="mfb-candidate-photo">
+                {candidate.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={candidate.photo_url}
+                    alt={`Foto de ${publicName}`}
+                    style={{
+                      objectPosition: `${candidate.photo_position_x ?? 50}% ${candidate.photo_position_y ?? 20}%`,
+                      transform: `scale(${candidate.photo_zoom ?? 1})`,
+                    }}
+                  />
+                ) : (
+                  <span aria-hidden="true">{publicName.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="mfb-candidate-intro">
+                <span className="mfb-candidate-eyebrow">Perfil do candidato</span>
+                <h1>{publicName}</h1>
+                {candidate.ballot_name && candidate.name !== candidate.ballot_name && (
+                  <p className="mfb-candidate-civil-name">{candidate.name}</p>
+                )}
+                <p className="mfb-candidate-meta">
+                  {[candidate.cargo, territory, candidate.party, candidate.number && `Nº ${candidate.number}`]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+            </header>
 
             <nav className="mfb-profile-nav" aria-label="Navegação do perfil">
               {hasProfile && <a href="#sobre">Trajetória</a>}

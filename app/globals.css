@@ -139,6 +139,16 @@ button, input, select, textarea { font: inherit; }
 .mfb-profile-section-title{display:flex;align-items:center;gap:10px;margin:0 0 20px;color:#193e2e;font-size:clamp(21px,3vw,26px);line-height:1.25}
 .mfb-profile-section-title::before{content:"";flex:none;width:5px;height:26px;border-radius:5px;background:#caa74d}
 .mfb-profile-mini-cv{margin:0 0 20px;color:#344b3d;font-size:17px;line-height:1.65;white-space:pre-wrap}
+.mfb-candidate-header{display:grid;grid-template-columns:minmax(180px,255px) minmax(0,1fr);gap:clamp(22px,4vw,44px);align-items:center;padding:clamp(12px,2vw,25px)}
+.mfb-candidate-photo{aspect-ratio:3/4;overflow:hidden;border-radius:18px;background:#e9f4ec;display:grid;place-items:center;box-shadow:0 8px 26px rgba(22,68,42,.12)}
+.mfb-candidate-photo img{display:block;width:100%;height:100%;object-fit:cover}
+.mfb-candidate-photo span{color:#146c43;font-size:80px;font-weight:750}
+.mfb-candidate-intro{min-width:0}
+.mfb-candidate-eyebrow{color:#157347;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.mfb-candidate-intro h1{margin:12px 0 8px;color:#1b2922;font-size:clamp(31px,4vw,53px);line-height:1.1;overflow-wrap:anywhere}
+.mfb-candidate-civil-name{margin:0 0 12px;color:#667085;font-size:15px}
+.mfb-candidate-meta{margin:12px 0 0;color:#3d5345;font-size:16px;line-height:1.6}
+@media(max-width:620px){.mfb-candidate-header{grid-template-columns:1fr;padding:10px;gap:20px}.mfb-candidate-photo{width:min(240px,75%);margin:auto}.mfb-candidate-intro{text-align:center}.mfb-profile-mini-cv{margin-bottom:14px}}
 @media(max-width:850px){.mfb-certificate{padding:27px}.mfb-certificate-layout{grid-template-columns:minmax(170px,32%) minmax(0,1fr);gap:22px}.mfb-endorsement{grid-template-columns:105px minmax(0,1fr);gap:12px}.mfb-endorsement-seal{width:105px;height:105px}.mfb-endorsement-reason{font-size:16px}}
 @media(max-width:620px){.mfb-profile-card{padding:12px!important}.mfb-certificate{padding:22px 19px;border-radius:20px}.mfb-certificate::before{inset:7px;border-radius:14px}.mfb-certificate-heading{gap:10px;margin-bottom:23px}.mfb-certificate-heading img{width:43px;height:43px}.mfb-certificate-heading p{font-size:11px;letter-spacing:.09em}.mfb-certificate-heading-rule{display:none}.mfb-certificate-layout{grid-template-columns:1fr;gap:22px}.mfb-certificate-photo-wrap{width:min(235px,75%);margin:auto}.mfb-certificate-identity h1{font-size:clamp(31px,9vw,46px)}.mfb-endorsement{grid-template-columns:86px minmax(0,1fr);gap:12px;padding-top:8px}.mfb-endorsement-seal{width:86px;height:86px}.mfb-endorsement h2{font-size:20px}.mfb-endorsement-reason{font-size:16px}.mfb-certificate-date{text-align:left}.mfb-certificate-signatures{gap:12px}.mfb-certificate-signatory strong{font-size:15px}.mfb-profile-nav{margin-right:-12px}.mfb-profile-section{padding:18px}}
 @media(max-width:390px){.mfb-endorsement{grid-template-columns:1fr}.mfb-endorsement-seal{width:104px;height:104px}}
