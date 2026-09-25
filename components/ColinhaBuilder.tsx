@@ -12,6 +12,9 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
   const [photo, setPhoto] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const stateLabel = state === "DF" ? "Brasília" : STATES.find(item => item.uf === state)?.name ?? state;
+  const choiceLabel = `Minha escolha para ${stateLabel}`;
   const [cardColors, setCardColors] = useState<Record<string,string>>({});
   const defaults=["#103d78","#2576b7","#073d88","#087846","#602893"];
   function cardColor(person: PublicCandidate, rowIndex: number) { return cardColors[person.id] || defaults[Math.min(officeRank(person.cargo),defaults.length-1)] || defaults[rowIndex%defaults.length]; }
@@ -61,10 +64,10 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     const image = new Image(); image.crossOrigin = "anonymous"; image.src = url;
     await image.decode(); return image;
   }
-  async function makeImage() {
+  async function makeImage(action: "download" | "share" | "whatsapp" | "instagram") {
     if (!photo) { setError("Escolha sua foto antes de gerar a colinha."); return; }
     if (!chosen.length) { setError("Selecione pelo menos um candidato para gerar a colinha."); return; }
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setNotice("");
     try {
       const canvas = document.createElement("canvas");
       const width=1080, topHeight=390, rowHeight=285, bottomHeight=100;
@@ -83,7 +86,7 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
       ctx.drawImage(supporter,photoX+(photoW-supporter.width*crop)/2,photoY+(photoH-supporter.height*crop)/2,supporter.width*crop,supporter.height*crop);ctx.restore();
       ctx.strokeStyle="#fff";ctx.lineWidth=8;ctx.strokeRect(photoX,photoY,photoW,photoH);
       ctx.fillStyle="#082c67";ctx.font="italic 900 88px Arial";ctx.fillText("COLINHA",432,158,585);
-      ctx.font="bold 37px Arial";ctx.fillText("MINHA ESCOLHA",440,220,565);
+      ctx.font="bold 37px Arial";ctx.fillText(choiceLabel.toUpperCase(),440,220,565);
       ctx.fillStyle="#fff";ctx.font="bold 24px Arial";ctx.fillText(`${city ? city + " · " : ""}${state} · Movimento Família Brasileira`,410,318,625);
       const top=topHeight;
       for(const [rowIndex,row] of posterRows.entries()){
@@ -115,11 +118,27 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
       ctx.fillText("movimentofamiliabrasileira.com.br",55,canvas.height-52);
       const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Não foi possível exportar a imagem.")),"image/png"));
       const file=new File([blob],"minha-colinha-mfb.png",{type:"image/png"});
-      if (navigator.canShare?.({ files:[file] }) && navigator.share) {
-        try { await navigator.share({files:[file],title:"Minha colinha"}); return; }
-        catch (cause) { if (cause instanceof DOMException && cause.name === "AbortError") return; }
+      if (action !== "download" && navigator.share && navigator.canShare?.({files:[file]})) {
+        try {
+          await navigator.share({files:[file],title:choiceLabel,text:choiceLabel});
+          return;
+        } catch (cause) {
+          if (cause instanceof DOMException && cause.name === "AbortError") return;
+          // Alguns navegadores oferecem compartilhamento, mas falham ao abrir o app.
+        }
       }
-      const url=URL.createObjectURL(blob);const anchor=document.createElement("a");anchor.href=url;anchor.download=file.name;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
+      const url=URL.createObjectURL(blob);
+      const anchor=document.createElement("a");
+      anchor.href=url;anchor.download=file.name;
+      document.body.appendChild(anchor);anchor.click();anchor.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),30000);
+      if (action === "whatsapp") {
+        setNotice("O PNG foi baixado. Anexe a imagem à conversa no WhatsApp.");
+      } else if (action === "instagram") {
+        setNotice("O PNG foi baixado. Abra o Instagram e selecione a imagem para publicar ou enviar.");
+      } else if (action === "share") {
+        setNotice("O PNG foi baixado. Anexe a imagem ao aplicativo em que deseja compartilhar.");
+      }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível gerar a colinha."); }
     finally { setBusy(false); }
   }
@@ -135,12 +154,18 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
       {loadError ? <p role="alert" className="colinha-error">Não foi possível carregar a lista de candidatos. Tente novamente mais tarde.</p>
         : available.length===0 && <p>Não há candidatos publicados para esta localidade.</p>}
       <div className="colinha-options">{available.map(person=><div key={person.id} className="colinha-option"><label><input type="checkbox" checked={selected.includes(person.id)} onChange={()=>choose(person.id)} /><span><strong>{displayName(person)}</strong><small>{person.cargo} · {person.number || "Número não informado"}</small></span></label><input className="colinha-color-input" type="color" aria-label={`Cor do cartão de ${displayName(person)}`} value={cardColors[person.id] || defaults[Math.min(officeRank(person.cargo),4)]} onChange={event=>setCardColors(old=>({...old,[person.id]:event.target.value}))} /></div>)}</div>
-      <button className="btn btn-primary" type="button" disabled={busy || !chosen.length || !photo} onClick={makeImage}>{busy?"Gerando…":"Compartilhar ou baixar PNG"}</button>
+      <div className="colinha-actions" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(135px,1fr))",gap:8}}>
+        <button className="btn btn-primary" type="button" disabled={busy || !chosen.length || !photo} onClick={()=>makeImage("download")}>{busy?"Gerando…":"Baixar PNG no PC"}</button>
+        <button className="btn btn-secondary" type="button" disabled={busy || !chosen.length || !photo} onClick={()=>makeImage("whatsapp")}>WhatsApp</button>
+        <button className="btn btn-secondary" type="button" disabled={busy || !chosen.length || !photo} onClick={()=>makeImage("instagram")}>Instagram</button>
+        <button className="btn btn-secondary" type="button" disabled={busy || !chosen.length || !photo} onClick={()=>makeImage("share")}>Compartilhar</button>
+      </div>
+      {notice && <p role="status" className="colinha-photo-hint">{notice} {notice.includes("WhatsApp") && <a href={`https://wa.me/?text=${encodeURIComponent(choiceLabel)}`} target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>}{notice.includes("Instagram") && <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer">Abrir Instagram</a>}</p>}
       {error && <p role="alert" className="colinha-error">{error}</p>}
     </section>
     <section className="colinha-preview colinha-poster" aria-label="Prévia da colinha"><div className="colinha-preview-top">
       {photo ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={photo} alt="Sua foto" onError={()=>setError("Sua foto não pôde ser exibida. Escolha JPG, PNG ou WebP.")} /> : <div className="colinha-photo-placeholder">Sua foto aqui</div>}
-      <div className="colinha-poster-heading"><h2>COLINHA</h2><strong>MINHA ESCOLHA</strong><p>{city ? `${city} · ` : ""}{state} · MFB</p></div>
+      <div className="colinha-poster-heading"><h2>COLINHA</h2><strong>{choiceLabel}</strong><p>{city ? `${city} · ` : ""}{state} · MFB</p></div>
     </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}`}>{row.map(person=><div key={person.id} className="colinha-preview-row" style={{backgroundColor:cardColor(person,index)}}>{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" onLoad={event=>matchPhotoColor(person.id,event.currentTarget)} />}<div className="colinha-poster-text"><small>{person.cargo}</small><b className={(person.number?.length ?? 0)>=5 ? "colinha-number-long" : (person.number?.length ?? 0)>=4 ? "colinha-number-medium" : ""}>{person.number||"—"}</b><strong>{displayName(person)}</strong></div></div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><small>movimentofamiliabrasileira.com.br</small></footer></section></div>
   </>;
 }
