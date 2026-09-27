@@ -882,10 +882,10 @@ export default async function CandidatePage({
             }}
           >
             <MotionEnhancements page="profile" />
-            <header className="mfb-candidate-header">
-              <div className="mfb-candidate-photo">
+            <header className="mfb-profile-hero">
+              <div className="mfb-profile-photo">
                 {candidate.photo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={candidate.photo_url}
                     alt={`Foto de ${publicName}`}
@@ -898,13 +898,12 @@ export default async function CandidatePage({
                   <span aria-hidden="true">{publicName.charAt(0).toUpperCase()}</span>
                 )}
               </div>
-              <div className="mfb-candidate-intro">
-                <span className="mfb-candidate-eyebrow">Perfil do candidato</span>
+              <div className="mfb-profile-intro">
                 <h1>{publicName}</h1>
-                {candidate.ballot_name && candidate.name !== candidate.ballot_name && (
-                  <p className="mfb-candidate-civil-name">{candidate.name}</p>
+                {candidate.ballot_name && candidate.name !== publicName && (
+                  <p className="mfb-profile-civil-name">{candidate.name}</p>
                 )}
-                <p className="mfb-candidate-meta">
+                <p className="mfb-profile-meta">
                   {[candidate.cargo, territory, candidate.party, candidate.number && `Nº ${candidate.number}`]
                     .filter(Boolean)
                     .join(" · ")}
@@ -912,7 +911,16 @@ export default async function CandidatePage({
               </div>
             </header>
 
+            {candidate.endorsement_reason?.trim() && (
+              <ContentSection id="apoio" title="Motivo da indicação">
+                <p style={{ margin: 0, lineHeight: 1.8, color: "#475467", whiteSpace: "pre-wrap" }}>
+                  {candidate.endorsement_reason}
+                </p>
+              </ContentSection>
+            )}
+
             <nav className="mfb-profile-nav" aria-label="Navegação do perfil">
+              {candidate.endorsement_reason?.trim() && <a href="#apoio">Indicação</a>}
               {hasProfile && <a href="#sobre">Trajetória</a>}
               {hasPoliticalContent && <a href="#propostas">Projeto e propostas</a>}
               {hasActivity && <a href="#atuacao">Atuação documentada</a>}
@@ -1051,10 +1059,6 @@ export default async function CandidatePage({
                 >
                   Registros factuais cadastrados
                   com base nas fontes indicadas.
-                  Estes registros documentais são
-                  apresentados separadamente da
-                  justificativa institucional de apoio
-                  indicada acima.
                 </p>
 
                 <div
@@ -1453,31 +1457,6 @@ export default async function CandidatePage({
                 </ContentSection>
               )}
 
-            {/* NOTA DOCUMENTAL */}
-
-            <div
-              style={{
-                marginTop: 36,
-                padding: 18,
-                borderRadius: 12,
-                background: "#f9fafb",
-                border: "1px solid #e4e7ec",
-                color: "#667085",
-                fontSize: 13,
-                lineHeight: 1.65,
-              }}
-            >
-              As informações desta página são
-              apresentadas para consulta
-              documental. Propostas,
-              prioridades e informações de
-              apresentação correspondem aos
-              dados cadastrados no perfil.
-              Registros de atuação pública e
-              referências documentais podem
-              conter links para suas respectivas
-              fontes.
-            </div>
           </div>
         </div>
       </main>
