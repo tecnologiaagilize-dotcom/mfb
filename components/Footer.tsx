@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { VisitCounter } from "@/components/VisitCounter";
 
 const defaults = {
   company_name: "Agilize Tecnologia",
@@ -8,6 +9,7 @@ const defaults = {
 
 export async function Footer() {
   let development = defaults;
+  let visitTotal: number | null = null;
 
   try {
     const supabase = await createClient();
@@ -18,6 +20,13 @@ export async function Footer() {
       .maybeSingle();
 
     if (data) development = { ...defaults, ...data };
+
+    const { data: visits, error } = await supabase
+      .from("site_visit_days")
+      .select("visit_count");
+    if (!error) {
+      visitTotal = (visits ?? []).reduce((sum, row) => sum + Number(row.visit_count || 0), 0);
+    }
   } catch {
     // Mantém os dados institucionais padrão enquanto a migração não for aplicada.
   }
@@ -28,6 +37,7 @@ export async function Footer() {
         <div>
           <strong style={{color:"white"}}>MFB — Movimento Família Brasileira</strong>
           <div style={{marginTop:8,fontSize:14}}>Portal institucional</div>
+          <VisitCounter initialTotal={visitTotal} />
         </div>
         <div style={{fontSize:13,maxWidth:520}}>
           <div>As informações sobre candidaturas devem ser conferidas e mantidas atualizadas pelos responsáveis pela plataforma.</div>
