@@ -85,9 +85,9 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
       try { supporter=await loadImage(photo ?? "/bandeira-brasil.svg"); }
       catch { throw new Error(photo ? "Não foi possível abrir sua foto. Escolha JPG, PNG ou WebP compatível com seu navegador." : "Não foi possível carregar a bandeira do Brasil."); }
       const photoX=22,photoY=30,photoW=350,photoH=338;
-      const crop=Math.min(photoW/supporter.width,photoH/supporter.height);
+      const crop=(photo ? Math.max : Math.min)(photoW/supporter.width,photoH/supporter.height);
       ctx.save();ctx.beginPath();ctx.roundRect(photoX,photoY,photoW,photoH,18);ctx.clip();
-      ctx.fillStyle=photo ? "#075b3b" : "#009b3a";ctx.fillRect(photoX,photoY,photoW,photoH);
+      if (!photo) { ctx.fillStyle="#009b3a";ctx.fillRect(photoX,photoY,photoW,photoH); }
       ctx.drawImage(supporter,photoX+(photoW-supporter.width*crop)/2,photoY+(photoH-supporter.height*crop)/2,supporter.width*crop,supporter.height*crop);ctx.restore();
       ctx.strokeStyle="#fff";ctx.lineWidth=8;ctx.strokeRect(photoX,photoY,photoW,photoH);
       ctx.fillStyle="#082c67";ctx.font="italic 900 88px Arial";ctx.fillText("COLINHA",432,158,585);
@@ -103,7 +103,7 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
           ctx.strokeStyle="#fff";ctx.lineWidth=4;ctx.stroke();
           const portraitWidth=row.length===1?370:230;
           if(person.photo_url){
-            try {const portrait=await loadImage(person.photo_url);const ratio=Math.min(portraitWidth/portrait.width,(h-10)/portrait.height);
+            try {const portrait=await loadImage(person.photo_url);const ratio=Math.max(portraitWidth/portrait.width,(h-10)/portrait.height);
               ctx.save();ctx.beginPath();ctx.roundRect(x+5,y+5,portraitWidth,h-10,12);ctx.clip();
               ctx.drawImage(portrait,x+5+(portraitWidth-portrait.width*ratio)/2,y+5+(h-10-portrait.height*ratio)/2,portrait.width*ratio,portrait.height*ratio);ctx.restore();
             }catch{/* Keep a readable card when a photo host disallows browser drawing. */}

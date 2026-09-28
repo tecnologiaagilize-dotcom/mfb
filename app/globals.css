@@ -321,8 +321,6 @@ button, input, select, textarea { font: inherit; }
 .colinha-poster .colinha-poster-row:not(.colinha-executive-row) .colinha-preview-row{min-height:225px}
 .colinha-poster .colinha-poster-row:not(.colinha-executive-row) .colinha-preview-row img{min-height:215px}
 .colinha-poster .colinha-preview-top img.colinha-flag{object-fit:contain;background:#009b3a}
-.colinha-poster .colinha-preview-top img:not(.colinha-flag){object-fit:contain;background:#075b3b}
-.colinha-poster .colinha-preview-row img{object-fit:contain;background:transparent}
 @media(max-width:610px){
   .colinha-poster .colinha-executive-row .colinha-preview-row{grid-template-columns:36% minmax(0,1fr);gap:5px;min-height:155px}
   .colinha-poster .colinha-executive-row .colinha-preview-row img{min-height:145px}
