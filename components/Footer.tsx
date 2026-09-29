@@ -35,7 +35,7 @@ export async function Footer() {
     <footer style={{background:"#071b2b",color:"#d0d5dd",padding:"40px 0"}}>
       <div className="container" style={{display:"flex",justifyContent:"space-between",gap:20,flexWrap:"wrap"}}>
         <div>
-          <strong style={{color:"white"}}>MFB — Movimento Família Brasileira</strong>
+          <strong style={{color:"white"}}>IBFC — Instituto Brasileiro da Família Cristã</strong>
           <div style={{marginTop:8,fontSize:14}}>Portal institucional</div>
           <VisitCounter initialTotal={visitTotal} />
         </div>
