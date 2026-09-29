@@ -97,14 +97,6 @@ export function MemberAuthForm({
             ) || ""
           ).trim();
 
-        const interest = String(form.get("interest") || "").trim();
-        const whatsappOptIn = form.get("whatsapp_opt_in") === "on";
-        const updatesOptIn = form.get("updates_opt_in") === "on";
-        const partyProjectOptIn = form.get("party_project_opt_in") === "on";
-        const source = new URLSearchParams(window.location.search).get("origem");
-        const allowedSources = ["instagram_ibfc", "portal_ibfc"];
-        const signupSource = source && allowedSources.includes(source) ? source : "portal_ibfc";
-
         const {
           data,
           error:
@@ -123,12 +115,6 @@ export function MemberAuthForm({
                   state_uf:
                     stateUf,
                   city,
-                  ibfc_interest: interest,
-                  ibfc_source: signupSource,
-                  ibfc_whatsapp_opt_in: whatsappOptIn,
-                  ibfc_updates_opt_in: updatesOptIn,
-                  ibfc_party_project_opt_in: partyProjectOptIn,
-                  ibfc_consent_version: "2026-09-29",
                 },
               },
             }
@@ -232,22 +218,22 @@ export function MemberAuthForm({
             href="/"
             className="member-back"
           >
-            ← Voltar ao IBFC
+            ← Voltar ao MFB
           </Link>
 
           <div className="member-kicker">
-            COMUNIDADE IBFC
+            COMUNIDADE MFB
           </div>
 
           <h1>
             {signup
-              ? "Faça parte do Instituto Brasileiro da Família Cristã"
+              ? "Faça parte do Movimento Família Brasileira"
               : "Bem-vindo de volta"}
           </h1>
 
           <p>
             {signup
-              ? "Escolha como participar e acompanhe sua inscrição, formação e atividades no portal do IBFC."
+              ? "Crie sua conta para acessar cursos, conteúdos, eventos, pesquisas e as próximas funcionalidades da comunidade MFB."
               : "Acesse seu ambiente exclusivo, continue seus cursos e acompanhe as atividades da comunidade."}
           </p>
 
@@ -278,7 +264,7 @@ export function MemberAuthForm({
         >
           <div className="member-auth-title">
             <div className="member-mark">
-              IBFC
+              MFB
             </div>
 
             <h2>
@@ -315,7 +301,6 @@ export function MemberAuthForm({
                 className="field"
                 name="whatsapp"
                 type="tel"
-                required
                 autoComplete="tel"
               />
 
@@ -351,27 +336,6 @@ export function MemberAuthForm({
                   />
                 </div>
               </div>
-              <label htmlFor="ibfc-interest">Como gostaria de participar?</label>
-              <select id="ibfc-interest" className="field" name="interest" required defaultValue="">
-                <option value="" disabled>Escolha uma opção</option>
-                <option value="formacao">Cursos e formação</option>
-                <option value="acao_comunitaria">Ações comunitárias</option>
-                <option value="eventos">Eventos e organização local</option>
-                <option value="voluntariado">Voluntariado</option>
-                <option value="conhecer">Quero conhecer o instituto</option>
-              </select>
-              <label style={{display:"flex",alignItems:"flex-start",gap:8,marginTop:12}}>
-                <input type="checkbox" name="whatsapp_opt_in" />
-                <span>Autorizo contato pelo WhatsApp sobre minha inscrição e as atividades que eu escolher. Posso pedir a interrupção a qualquer momento.</span>
-              </label>
-              <label style={{display:"flex",alignItems:"flex-start",gap:8,marginTop:10}}>
-                <input type="checkbox" name="updates_opt_in" />
-                <span>Também quero receber convites e conteúdos futuros do IBFC pelo WhatsApp.</span>
-              </label>
-              <label style={{display:"flex",alignItems:"flex-start",gap:8,marginTop:10}}>
-                <input type="checkbox" name="party_project_opt_in" />
-                <span>Tenho interesse em receber informações sobre o projeto de criação de um novo partido. Esta escolha não é filiação e não compartilha meus dados com outra organização.</span>
-              </label>
             </>
           )}
 
