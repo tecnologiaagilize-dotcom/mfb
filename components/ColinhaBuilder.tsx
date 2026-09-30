@@ -50,6 +50,12 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
   const frameCandidates = chosen;
   const frameCandidate = frameCandidates.find(person => person.id === frameCandidateId) ?? frameCandidates[0];
   const frameArt = frameShape === "circle" ? frameCandidate?.frame_circle_url : frameCandidate?.frame_square_url;
+  const frameFont = ["Arial","Georgia","Verdana","Impact"].includes(frameCandidate?.frame_font_family||"") ? frameCandidate!.frame_font_family! : "Arial";
+  const frameFontSize = Math.max(28,Math.min(100,frameCandidate?.frame_font_size||64));
+  const fitFrameFont = (value:string,size:number,width:number) => Math.min(size,width/Math.max(1,value.length*.7));
+  const frameCargoSize = fitFrameFont(frameCandidate?.cargo||"MOVIMENTO FAMÍLIA BRASILEIRA",frameFontSize*.47,frameShape==="circle"?720:900);
+  const frameNameSize = fitFrameFont(frameCandidate?displayName(frameCandidate):"MFB",frameFontSize,frameShape==="circle"?760:940);
+  const frameNumberSize = fitFrameFont(frameCandidate?.number||"MFB",frameFontSize*1.75,frameShape==="circle"?600:940);
   const posterRows: PublicCandidate[][] = [];
   for (let index=0; index<chosen.length;) {
     const rank=officeRank(chosen[index].cargo);
@@ -63,7 +69,7 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     else posterRows.push([first]);
   }
   const isExecutiveRow = (row: PublicCandidate[]) => row.length === 2 && officeRank(row[0].cargo) === 0 && officeRank(row[1].cargo) === 1;
-  const rowHeights = posterRows.map(row => isExecutiveRow(row) ? 285 : 350);
+  const rowHeights = posterRows.map(row => isExecutiveRow(row) ? 430 : 470);
   function choose(id: string) { setSelected(old => old.includes(id) ? old.filter(value => value !== id) : [...old,id]); }
   function upload(file?: File) {
     if (!file) return;
@@ -90,9 +96,9 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
       try { supporter=await loadImage(photo ?? "/bandeira-brasil.svg"); }
       catch { throw new Error(photo ? "Não foi possível abrir sua foto. Escolha JPG, PNG ou WebP compatível com seu navegador." : "Não foi possível carregar a bandeira do Brasil."); }
       const photoX=22,photoY=30,photoW=350,photoH=338;
-      const crop=(photo ? Math.max : Math.min)(photoW/supporter.width,photoH/supporter.height);
+      const crop=Math.min(photoW/supporter.width,photoH/supporter.height);
       ctx.save();ctx.beginPath();ctx.roundRect(photoX,photoY,photoW,photoH,18);ctx.clip();
-      if (!photo) { ctx.fillStyle="#009b3a";ctx.fillRect(photoX,photoY,photoW,photoH); }
+      ctx.fillStyle=photo ? "#075b3b" : "#009b3a";ctx.fillRect(photoX,photoY,photoW,photoH);
       ctx.drawImage(supporter,photoX+(photoW-supporter.width*crop)/2,photoY+(photoH-supporter.height*crop)/2,supporter.width*crop,supporter.height*crop);ctx.restore();
       ctx.strokeStyle="#fff";ctx.lineWidth=8;ctx.strokeRect(photoX,photoY,photoW,photoH);
       ctx.fillStyle="#082c67";ctx.font="italic 900 88px Arial";ctx.fillText("COLINHA",432,158,585);
@@ -106,22 +112,23 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
           const x=16+column*(boxW+gap),y=rowY,w=boxW,h=rowHeights[rowIndex]-8;
           ctx.fillStyle=cardColor(person,rowIndex);ctx.beginPath();ctx.roundRect(x,y,w,h,16);ctx.fill();
           ctx.strokeStyle="#fff";ctx.lineWidth=4;ctx.stroke();
-          const portraitWidth=row.length===1?370:230;
+          const headingHeight=155;
+          ctx.save();ctx.textAlign="center";
+          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?32:26}px Arial`;
+          ctx.fillText(person.cargo.toUpperCase(),x+w/2,y+36,w-28);
+          ctx.font=`bold ${row.length===1?39:33}px Arial`;
+          ctx.fillText(displayName(person).toUpperCase(),x+w/2,y+79,w-28);
+          ctx.fillStyle="#ffe22c";
+          ctx.font=`900 ${row.length===1?82:76}px Arial`;
+          ctx.fillText(person.number||"—",x+w/2,y+headingHeight-14,w-28);
+          ctx.restore();
           if(person.photo_url){
-            try {const portrait=await loadImage(person.photo_url);const ratio=Math.max(portraitWidth/portrait.width,(h-10)/portrait.height);
-              ctx.save();ctx.beginPath();ctx.roundRect(x+5,y+5,portraitWidth,h-10,12);ctx.clip();
-              ctx.drawImage(portrait,x+5+(portraitWidth-portrait.width*ratio)/2,y+5+(h-10-portrait.height*ratio)/2,portrait.width*ratio,portrait.height*ratio);ctx.restore();
+            try {const portrait=await loadImage(person.photo_url);
+              const areaX=x+8,areaY=y+headingHeight+3,areaW=w-16,areaH=h-headingHeight-11;
+              const ratio=Math.min(areaW/portrait.width,areaH/portrait.height);
+              ctx.drawImage(portrait,areaX+(areaW-portrait.width*ratio)/2,areaY+(areaH-portrait.height*ratio)/2,portrait.width*ratio,portrait.height*ratio);
             }catch{/* Keep a readable card when a photo host disallows browser drawing. */}
           }
-          const tx=x+portraitWidth+23,availableWidth=w-portraitWidth-42;
-          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?40:28}px Arial`;ctx.fillText(person.cargo.toUpperCase(),tx,y+Math.round(h*.21),availableWidth);
-          const number=person.number||"—";
-          const longNumber=number.length>=5;
-          let numberSize=longNumber ? (row.length===1?116:70) : (row.length===1?150:105);
-          ctx.font=`900 ${numberSize}px Arial`;
-          while(numberSize>32 && ctx.measureText(number).width>availableWidth){numberSize-=2;ctx.font=`900 ${numberSize}px Arial`;}
-          ctx.fillStyle="#ffe22c";ctx.fillText(number,tx,y+Math.round(h*.68));
-          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?47:30}px Arial`;ctx.fillText(displayName(person).toUpperCase(),tx,y+h-25,availableWidth);
         }
         rowY+=rowHeights[rowIndex];
       }
@@ -164,7 +171,6 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
       const bg=frameCandidate.frame_background_color||"#075b3b";
       const color=frameCandidate.frame_text_color||"#ffffff";
       const font=["Arial","Georgia","Verdana","Impact"].includes(frameCandidate.frame_font_family||"")?frameCandidate.frame_font_family!:"Arial";
-      const fontSize=Math.max(28,Math.min(100,frameCandidate.frame_font_size||64));
       if(isCircle){ctx.beginPath();ctx.arc(540,540,530,0,Math.PI*2);ctx.clip();}
       ctx.fillStyle=bg;ctx.fillRect(0,0,1080,1080);
       if(frameCandidate.frame_background_url){
@@ -183,11 +189,11 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
         ctx.drawImage(artwork,0,0,1080,1080);
       }else{
         const gradient=ctx.createLinearGradient(0,700,1080,1080);gradient.addColorStop(0,"#0873d1");gradient.addColorStop(1,bg);
-        ctx.beginPath();ctx.moveTo(0,isCircle?800:790);ctx.quadraticCurveTo(540,isCircle?660:550,1080,isCircle?800:790);ctx.lineTo(1080,1080);ctx.lineTo(0,1080);ctx.closePath();ctx.fillStyle=gradient;ctx.fill();
+        ctx.beginPath();ctx.moveTo(0,isCircle?760:790);ctx.quadraticCurveTo(540,isCircle?510:550,1080,isCircle?760:790);ctx.lineTo(1080,1080);ctx.lineTo(0,1080);ctx.closePath();ctx.fillStyle=gradient;ctx.fill();
         ctx.fillStyle=color;ctx.textAlign="center";
-        ctx.font=`bold ${Math.round(fontSize*.47)}px ${font}`;ctx.fillText(frameCandidate.cargo.toUpperCase(),540,825,880);
-        ctx.font=`900 ${fontSize}px ${font}`;ctx.fillText(displayName(frameCandidate).toUpperCase(),540,905,isCircle?790:960);
-        ctx.font=`900 ${Math.round(fontSize*1.75)}px ${font}`;ctx.fillText(frameCandidate.number||"MFB",540,1010,isCircle?600:950);
+        ctx.font=`bold ${frameCargoSize}px ${font}`;ctx.fillText(frameCandidate.cargo.toUpperCase(),540,isCircle?720:825,isCircle?720:900);
+        ctx.font=`900 ${frameNameSize}px ${font}`;ctx.fillText(displayName(frameCandidate).toUpperCase(),540,isCircle?800:905,isCircle?760:940);
+        ctx.font=`900 ${frameNumberSize}px ${font}`;ctx.fillText(frameCandidate.number||"MFB",540,isCircle?925:1010,isCircle?600:940);
       }
       const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Não foi possível exportar a moldura.")),"image/png"));
       const file=new File([blob],`moldura-mfb-${frameShape}.png`,{type:"image/png"});
@@ -225,9 +231,11 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     <section className="colinha-preview colinha-poster" aria-label="Prévia da colinha"><div className="colinha-preview-top">
       {photo ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={photo} alt="Sua foto" onError={()=>setError("Sua foto não pôde ser exibida. Escolha JPG, PNG ou WebP.")} /> : /* eslint-disable-next-line @next/next/no-img-element */ <img className="colinha-flag" src="/bandeira-brasil.svg" alt="Bandeira do Brasil" />}
       <div className="colinha-poster-heading"><h2>COLINHA</h2><strong>{choiceLabel}</strong><p>{city ? `${city} · ` : ""}{state} · MFB</p></div>
-    </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}${isExecutiveRow(row) ? " colinha-executive-row" : ""}`}>{row.map(person=><div key={person.id} className="colinha-preview-row" style={{backgroundColor:cardColor(person,index)}}>{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" onLoad={event=>matchPhotoColor(person.id,event.currentTarget)} />}<div className="colinha-poster-text"><small>{person.cargo}</small><b className={(person.number?.length ?? 0)>=5 ? "colinha-number-long" : (person.number?.length ?? 0)>=4 ? "colinha-number-medium" : ""}>{person.number||"—"}</b><strong>{displayName(person)}</strong></div></div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><small>movimentofamiliabrasileira.com.br</small></footer></section></div>
+    </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}${isExecutiveRow(row) ? " colinha-executive-row" : ""}`}>{row.map(person=><div key={person.id} className="colinha-preview-row" style={{backgroundColor:cardColor(person,index)}}><div className="colinha-poster-text"><small>{person.cargo}</small><strong>{displayName(person)}</strong><b className={(person.number?.length ?? 0)>=5 ? "colinha-number-long" : (person.number?.length ?? 0)>=4 ? "colinha-number-medium" : ""}>{person.number||"—"}</b></div>{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" onLoad={event=>matchPhotoColor(person.id,event.currentTarget)} />}</div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><small>movimentofamiliabrasileira.com.br</small></footer></section></div>
     <section className="colinha-frame-section card" aria-label="Moldura para WhatsApp"><div className="colinha-frame-controls">
       <h2>Minha moldura para redes sociais</h2><p>Marque um candidato acima para liberar sua moldura. Use sua foto ou a bandeira do Brasil e escolha o formato para WhatsApp, Instagram ou Facebook.</p>
+      <label className="colinha-frame-upload">Inserir foto ou imagem<input type="file" accept="image/*" onChange={event=>upload(event.target.files?.[0])} /></label>
+      {photo ? <button className="btn btn-secondary" type="button" onClick={()=>setPhoto(null)}>Remover foto e usar bandeira</button> : <p className="colinha-photo-hint">Sem foto, a bandeira do Brasil aparece na moldura e na colinha.</p>}
       <label>Representante na moldura<select value={frameCandidate?.id ?? ""} onChange={event=>setFrameCandidateId(event.target.value)} disabled={!frameCandidates.length}><option value="" disabled>Selecione um candidato acima</option>{frameCandidates.map(person=><option key={person.id} value={person.id}>{displayName(person)} · {person.number || "MFB"}</option>)}</select></label>
       <fieldset className="colinha-frame-shapes"><legend>Formato</legend><label><input type="radio" checked={frameShape==="circle"} onChange={()=>setFrameShape("circle")} /> Circular, com detalhes ao redor</label><label><input type="radio" checked={frameShape==="square"} onChange={()=>setFrameShape("square")} /> Quadrado, com faixa inferior</label></fieldset>
       <div className="colinha-frame-actions"><button className="btn btn-primary" type="button" disabled={busy||!frameCandidate} onClick={()=>makeFrame("download")}>Baixar moldura PNG</button><button className="btn btn-secondary" type="button" disabled={busy||!frameCandidate} onClick={()=>makeFrame("whatsapp")}>WhatsApp</button><button className="btn btn-secondary" type="button" disabled={busy||!frameCandidate} onClick={()=>makeFrame("instagram")}>Instagram</button><button className="btn btn-secondary" type="button" disabled={busy||!frameCandidate} onClick={()=>makeFrame("facebook")}>Facebook</button><button className="btn btn-secondary" type="button" disabled={busy||!frameCandidate} onClick={()=>makeFrame("share")}>Outras mídias</button></div>
@@ -235,7 +243,15 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     </div><div className={`colinha-frame-preview ${frameShape==="circle"?"colinha-frame-circle":"colinha-frame-square"}`} aria-label="Prévia da moldura" style={{backgroundColor:frameCandidate?.frame_background_color||"#075b3b"}}>
       {frameCandidate?.frame_background_url && /* eslint-disable-next-line @next/next/no-img-element */ <img className="colinha-frame-background" src={frameCandidate.frame_background_url} alt="" />}
       {/* eslint-disable-next-line @next/next/no-img-element */}<img className={photo?"":"colinha-frame-flag"} src={photo??"/bandeira-brasil.svg"} alt={photo?"Sua foto na moldura":"Bandeira do Brasil na moldura"} />
-      {frameArt ? /* eslint-disable-next-line @next/next/no-img-element */ <img className="colinha-frame-art" src={frameArt} alt="Arte da moldura do candidato" /> : <div className="colinha-frame-band" style={{color:frameCandidate?.frame_text_color||"#ffffff",fontFamily:frameCandidate?.frame_font_family||"Arial",background:`linear-gradient(120deg,#0873d1,${frameCandidate?.frame_background_color||"#075b3b"})`}}><small>{frameCandidate?.cargo ?? "MOVIMENTO FAMÍLIA BRASILEIRA"}</small><strong style={{fontSize:`clamp(18px,4vw,${Math.round((frameCandidate?.frame_font_size||64)*.44)}px)`}}>{frameCandidate?displayName(frameCandidate):"MFB"}</strong><b>{frameCandidate?.number??""}</b></div>}
+      {frameArt ? /* eslint-disable-next-line @next/next/no-img-element */ <img className="colinha-frame-art" src={frameArt} alt="Arte da moldura do candidato" /> : <svg className="colinha-frame-overlay" viewBox="0 0 1080 1080" aria-label="Cargo, nome e número do candidato">
+        <defs><linearGradient id="mfb-frame-gradient"><stop stopColor="#0873d1" /><stop offset="1" stopColor={frameCandidate?.frame_background_color||"#075b3b"} /></linearGradient></defs>
+        <path d={frameShape==="circle"?"M0 760 Q540 510 1080 760 V1080 H0 Z":"M0 790 Q540 550 1080 790 V1080 H0 Z"} fill="url(#mfb-frame-gradient)" />
+        <g textAnchor="middle" fill={frameCandidate?.frame_text_color||"#ffffff"} fontFamily={frameFont} fontWeight="900">
+          <text x="540" y={frameShape==="circle"?720:825} fontSize={frameCargoSize}>{(frameCandidate?.cargo||"MOVIMENTO FAMÍLIA BRASILEIRA").toUpperCase()}</text>
+          <text x="540" y={frameShape==="circle"?800:905} fontSize={frameNameSize}>{(frameCandidate?displayName(frameCandidate):"MFB").toUpperCase()}</text>
+          <text x="540" y={frameShape==="circle"?925:1010} fontSize={frameNumberSize}>{frameCandidate?.number||""}</text>
+        </g>
+      </svg>}
     </div></section>
   </>;
 }
