@@ -327,3 +327,36 @@ button, input, select, textarea { font: inherit; }
   .colinha-poster .colinha-poster-row:not(.colinha-executive-row) .colinha-preview-row{min-height:175px}
   .colinha-poster .colinha-poster-row:not(.colinha-executive-row) .colinha-preview-row img{min-height:165px}
 }
+
+/* Foto inteira abaixo das informações, na prévia e no PNG exportado. */
+.colinha-poster .colinha-preview-top img:not(.colinha-flag){object-fit:contain;background:#075b3b}
+.colinha-poster .colinha-preview-row,
+.colinha-poster .colinha-poster-row:has(>.colinha-preview-row:only-child) .colinha-preview-row{
+  display:flex;flex-direction:column;align-items:stretch;min-height:320px;padding:6px;gap:4px
+}
+.colinha-poster .colinha-poster-row:not(.colinha-executive-row) .colinha-preview-row{min-height:350px}
+.colinha-poster .colinha-preview-row .colinha-poster-text{
+  width:100%;min-height:115px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;overflow:visible
+}
+.colinha-poster .colinha-preview-row .colinha-poster-text small{font-size:clamp(10px,1.5vw,17px)}
+.colinha-poster .colinha-preview-row .colinha-poster-text strong{font-size:clamp(13px,1.9vw,23px);overflow-wrap:anywhere}
+.colinha-poster .colinha-preview-row .colinha-poster-text b,
+.colinha-poster .colinha-preview-row .colinha-poster-text b.colinha-number-medium,
+.colinha-poster .colinha-preview-row .colinha-poster-text b.colinha-number-long{font-size:clamp(32px,5.6vw,62px);line-height:1}
+.colinha-poster .colinha-preview-row img,
+.colinha-poster .colinha-executive-row .colinha-preview-row img,
+.colinha-poster .colinha-poster-row:not(.colinha-executive-row) .colinha-preview-row img{
+  display:block;width:100%;height:230px;min-height:0;flex:1;object-fit:contain;object-position:center;border-radius:7px
+}
+@media(max-width:610px){
+  .colinha-poster .colinha-preview-row,
+  .colinha-poster .colinha-poster-row:has(>.colinha-preview-row:only-child) .colinha-preview-row,
+  .colinha-poster .colinha-poster-row:not(.colinha-executive-row) .colinha-preview-row{min-height:275px;padding:4px}
+  .colinha-poster .colinha-preview-row .colinha-poster-text{min-height:105px}
+  .colinha-poster .colinha-preview-row img,
+  .colinha-poster .colinha-executive-row .colinha-preview-row img,
+  .colinha-poster .colinha-poster-row:not(.colinha-executive-row) .colinha-preview-row img{height:165px;min-height:0}
+  .colinha-poster .colinha-preview-row .colinha-poster-text b,
+  .colinha-poster .colinha-preview-row .colinha-poster-text b.colinha-number-medium,
+  .colinha-poster .colinha-preview-row .colinha-poster-text b.colinha-number-long{font-size:clamp(28px,7vw,42px)}
+}

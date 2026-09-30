@@ -58,7 +58,7 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     else posterRows.push([first]);
   }
   const isExecutiveRow = (row: PublicCandidate[]) => row.length === 2 && officeRank(row[0].cargo) === 0 && officeRank(row[1].cargo) === 1;
-  const rowHeights = posterRows.map(row => isExecutiveRow(row) ? 285 : 350);
+  const rowHeights = posterRows.map(row => isExecutiveRow(row) ? 430 : 470);
   function choose(id: string) { setSelected(old => old.includes(id) ? old.filter(value => value !== id) : [...old,id]); }
   function upload(file?: File) {
     if (!file) return;
@@ -85,9 +85,9 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
       try { supporter=await loadImage(photo ?? "/bandeira-brasil.svg"); }
       catch { throw new Error(photo ? "Não foi possível abrir sua foto. Escolha JPG, PNG ou WebP compatível com seu navegador." : "Não foi possível carregar a bandeira do Brasil."); }
       const photoX=22,photoY=30,photoW=350,photoH=338;
-      const crop=(photo ? Math.max : Math.min)(photoW/supporter.width,photoH/supporter.height);
+      const crop=Math.min(photoW/supporter.width,photoH/supporter.height);
       ctx.save();ctx.beginPath();ctx.roundRect(photoX,photoY,photoW,photoH,18);ctx.clip();
-      if (!photo) { ctx.fillStyle="#009b3a";ctx.fillRect(photoX,photoY,photoW,photoH); }
+      ctx.fillStyle=photo ? "#075b3b" : "#009b3a";ctx.fillRect(photoX,photoY,photoW,photoH);
       ctx.drawImage(supporter,photoX+(photoW-supporter.width*crop)/2,photoY+(photoH-supporter.height*crop)/2,supporter.width*crop,supporter.height*crop);ctx.restore();
       ctx.strokeStyle="#fff";ctx.lineWidth=8;ctx.strokeRect(photoX,photoY,photoW,photoH);
       ctx.fillStyle="#082c67";ctx.font="italic 900 88px Arial";ctx.fillText("COLINHA",432,158,585);
@@ -101,22 +101,23 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
           const x=16+column*(boxW+gap),y=rowY,w=boxW,h=rowHeights[rowIndex]-8;
           ctx.fillStyle=cardColor(person,rowIndex);ctx.beginPath();ctx.roundRect(x,y,w,h,16);ctx.fill();
           ctx.strokeStyle="#fff";ctx.lineWidth=4;ctx.stroke();
-          const portraitWidth=row.length===1?370:230;
+          const headingHeight=155;
+          ctx.save();ctx.textAlign="center";
+          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?32:26}px Arial`;
+          ctx.fillText(person.cargo.toUpperCase(),x+w/2,y+36,w-28);
+          ctx.font=`bold ${row.length===1?39:33}px Arial`;
+          ctx.fillText(displayName(person).toUpperCase(),x+w/2,y+79,w-28);
+          ctx.fillStyle="#ffe22c";
+          ctx.font=`900 ${row.length===1?82:76}px Arial`;
+          ctx.fillText(person.number||"—",x+w/2,y+headingHeight-14,w-28);
+          ctx.restore();
           if(person.photo_url){
-            try {const portrait=await loadImage(person.photo_url);const ratio=Math.max(portraitWidth/portrait.width,(h-10)/portrait.height);
-              ctx.save();ctx.beginPath();ctx.roundRect(x+5,y+5,portraitWidth,h-10,12);ctx.clip();
-              ctx.drawImage(portrait,x+5+(portraitWidth-portrait.width*ratio)/2,y+5+(h-10-portrait.height*ratio)/2,portrait.width*ratio,portrait.height*ratio);ctx.restore();
+            try {const portrait=await loadImage(person.photo_url);
+              const areaX=x+8,areaY=y+headingHeight+3,areaW=w-16,areaH=h-headingHeight-11;
+              const ratio=Math.min(areaW/portrait.width,areaH/portrait.height);
+              ctx.drawImage(portrait,areaX+(areaW-portrait.width*ratio)/2,areaY+(areaH-portrait.height*ratio)/2,portrait.width*ratio,portrait.height*ratio);
             }catch{/* Keep a readable card when a photo host disallows browser drawing. */}
           }
-          const tx=x+portraitWidth+23,availableWidth=w-portraitWidth-42;
-          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?40:28}px Arial`;ctx.fillText(person.cargo.toUpperCase(),tx,y+Math.round(h*.21),availableWidth);
-          const number=person.number||"—";
-          const longNumber=number.length>=5;
-          let numberSize=longNumber ? (row.length===1?116:70) : (row.length===1?150:105);
-          ctx.font=`900 ${numberSize}px Arial`;
-          while(numberSize>32 && ctx.measureText(number).width>availableWidth){numberSize-=2;ctx.font=`900 ${numberSize}px Arial`;}
-          ctx.fillStyle="#ffe22c";ctx.fillText(number,tx,y+Math.round(h*.68));
-          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?47:30}px Arial`;ctx.fillText(displayName(person).toUpperCase(),tx,y+h-25,availableWidth);
         }
         rowY+=rowHeights[rowIndex];
       }
@@ -173,6 +174,6 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     <section className="colinha-preview colinha-poster" aria-label="Prévia da colinha"><div className="colinha-preview-top">
       {photo ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={photo} alt="Sua foto" onError={()=>setError("Sua foto não pôde ser exibida. Escolha JPG, PNG ou WebP.")} /> : /* eslint-disable-next-line @next/next/no-img-element */ <img className="colinha-flag" src="/bandeira-brasil.svg" alt="Bandeira do Brasil" />}
       <div className="colinha-poster-heading"><h2>COLINHA</h2><strong>{choiceLabel}</strong><p>{city ? `${city} · ` : ""}{state} · MFB</p></div>
-    </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}${isExecutiveRow(row) ? " colinha-executive-row" : ""}`}>{row.map(person=><div key={person.id} className="colinha-preview-row" style={{backgroundColor:cardColor(person,index)}}>{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" onLoad={event=>matchPhotoColor(person.id,event.currentTarget)} />}<div className="colinha-poster-text"><small>{person.cargo}</small><b className={(person.number?.length ?? 0)>=5 ? "colinha-number-long" : (person.number?.length ?? 0)>=4 ? "colinha-number-medium" : ""}>{person.number||"—"}</b><strong>{displayName(person)}</strong></div></div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><small>movimentofamiliabrasileira.com.br</small></footer></section></div>
+    </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}${isExecutiveRow(row) ? " colinha-executive-row" : ""}`}>{row.map(person=><div key={person.id} className="colinha-preview-row" style={{backgroundColor:cardColor(person,index)}}><div className="colinha-poster-text"><small>{person.cargo}</small><strong>{displayName(person)}</strong><b className={(person.number?.length ?? 0)>=5 ? "colinha-number-long" : (person.number?.length ?? 0)>=4 ? "colinha-number-medium" : ""}>{person.number||"—"}</b></div>{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" onLoad={event=>matchPhotoColor(person.id,event.currentTarget)} />}</div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><small>movimentofamiliabrasileira.com.br</small></footer></section></div>
   </>;
 }
