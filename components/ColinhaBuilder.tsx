@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { STATES } from "@/lib/states";
 
-type PublicCandidate = { id: string; name: string; ballot_name: string | null; cargo: string; number: string | null; state_uf: string; city_name?: string | null; photo_url?: string | null; slug: string };
+type PublicCandidate = { id: string; name: string; ballot_name: string | null; cargo: string; number: string | null; state_uf: string; city_name?: string | null; photo_url?: string | null; slug: string; frame_circle_url?: string | null; frame_square_url?: string | null; frame_background_url?: string | null; frame_background_color?: string; frame_text_color?: string; frame_font_family?: string; frame_font_size?: number };
 const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"]);
 const displayName = (person: PublicCandidate) => person.ballot_name && !/^\d+$/.test(person.ballot_name) ? person.ballot_name : person.name;
 export function ColinhaBuilder({ candidates, initialState, loadError = false }: { candidates: PublicCandidate[]; initialState?: string; loadError?: boolean }) {
@@ -45,6 +45,11 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     return 5;
   };
   const chosen = available.filter(c => selected.includes(c.id)).sort((a,b) => officeRank(a.cargo)-officeRank(b.cargo));
+  const [frameCandidateId, setFrameCandidateId] = useState("");
+  const [frameShape, setFrameShape] = useState<"circle" | "square">("circle");
+  const frameCandidates = chosen;
+  const frameCandidate = frameCandidates.find(person => person.id === frameCandidateId) ?? frameCandidates[0];
+  const frameArt = frameShape === "circle" ? frameCandidate?.frame_circle_url : frameCandidate?.frame_square_url;
   const posterRows: PublicCandidate[][] = [];
   for (let index=0; index<chosen.length;) {
     const rank=officeRank(chosen[index].cargo);
@@ -58,7 +63,7 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     else posterRows.push([first]);
   }
   const isExecutiveRow = (row: PublicCandidate[]) => row.length === 2 && officeRank(row[0].cargo) === 0 && officeRank(row[1].cargo) === 1;
-  const rowHeights = posterRows.map(row => isExecutiveRow(row) ? 430 : 470);
+  const rowHeights = posterRows.map(row => isExecutiveRow(row) ? 285 : 350);
   function choose(id: string) { setSelected(old => old.includes(id) ? old.filter(value => value !== id) : [...old,id]); }
   function upload(file?: File) {
     if (!file) return;
@@ -85,9 +90,9 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
       try { supporter=await loadImage(photo ?? "/bandeira-brasil.svg"); }
       catch { throw new Error(photo ? "Não foi possível abrir sua foto. Escolha JPG, PNG ou WebP compatível com seu navegador." : "Não foi possível carregar a bandeira do Brasil."); }
       const photoX=22,photoY=30,photoW=350,photoH=338;
-      const crop=Math.min(photoW/supporter.width,photoH/supporter.height);
+      const crop=(photo ? Math.max : Math.min)(photoW/supporter.width,photoH/supporter.height);
       ctx.save();ctx.beginPath();ctx.roundRect(photoX,photoY,photoW,photoH,18);ctx.clip();
-      ctx.fillStyle=photo ? "#075b3b" : "#009b3a";ctx.fillRect(photoX,photoY,photoW,photoH);
+      if (!photo) { ctx.fillStyle="#009b3a";ctx.fillRect(photoX,photoY,photoW,photoH); }
       ctx.drawImage(supporter,photoX+(photoW-supporter.width*crop)/2,photoY+(photoH-supporter.height*crop)/2,supporter.width*crop,supporter.height*crop);ctx.restore();
       ctx.strokeStyle="#fff";ctx.lineWidth=8;ctx.strokeRect(photoX,photoY,photoW,photoH);
       ctx.fillStyle="#082c67";ctx.font="italic 900 88px Arial";ctx.fillText("COLINHA",432,158,585);
@@ -101,23 +106,22 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
           const x=16+column*(boxW+gap),y=rowY,w=boxW,h=rowHeights[rowIndex]-8;
           ctx.fillStyle=cardColor(person,rowIndex);ctx.beginPath();ctx.roundRect(x,y,w,h,16);ctx.fill();
           ctx.strokeStyle="#fff";ctx.lineWidth=4;ctx.stroke();
-          const headingHeight=155;
-          ctx.save();ctx.textAlign="center";
-          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?32:26}px Arial`;
-          ctx.fillText(person.cargo.toUpperCase(),x+w/2,y+36,w-28);
-          ctx.font=`bold ${row.length===1?39:33}px Arial`;
-          ctx.fillText(displayName(person).toUpperCase(),x+w/2,y+79,w-28);
-          ctx.fillStyle="#ffe22c";
-          ctx.font=`900 ${row.length===1?82:76}px Arial`;
-          ctx.fillText(person.number||"—",x+w/2,y+headingHeight-14,w-28);
-          ctx.restore();
+          const portraitWidth=row.length===1?370:230;
           if(person.photo_url){
-            try {const portrait=await loadImage(person.photo_url);
-              const areaX=x+8,areaY=y+headingHeight+3,areaW=w-16,areaH=h-headingHeight-11;
-              const ratio=Math.min(areaW/portrait.width,areaH/portrait.height);
-              ctx.drawImage(portrait,areaX+(areaW-portrait.width*ratio)/2,areaY+(areaH-portrait.height*ratio)/2,portrait.width*ratio,portrait.height*ratio);
+            try {const portrait=await loadImage(person.photo_url);const ratio=Math.max(portraitWidth/portrait.width,(h-10)/portrait.height);
+              ctx.save();ctx.beginPath();ctx.roundRect(x+5,y+5,portraitWidth,h-10,12);ctx.clip();
+              ctx.drawImage(portrait,x+5+(portraitWidth-portrait.width*ratio)/2,y+5+(h-10-portrait.height*ratio)/2,portrait.width*ratio,portrait.height*ratio);ctx.restore();
             }catch{/* Keep a readable card when a photo host disallows browser drawing. */}
           }
+          const tx=x+portraitWidth+23,availableWidth=w-portraitWidth-42;
+          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?40:28}px Arial`;ctx.fillText(person.cargo.toUpperCase(),tx,y+Math.round(h*.21),availableWidth);
+          const number=person.number||"—";
+          const longNumber=number.length>=5;
+          let numberSize=longNumber ? (row.length===1?116:70) : (row.length===1?150:105);
+          ctx.font=`900 ${numberSize}px Arial`;
+          while(numberSize>32 && ctx.measureText(number).width>availableWidth){numberSize-=2;ctx.font=`900 ${numberSize}px Arial`;}
+          ctx.fillStyle="#ffe22c";ctx.fillText(number,tx,y+Math.round(h*.68));
+          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?47:30}px Arial`;ctx.fillText(displayName(person).toUpperCase(),tx,y+h-25,availableWidth);
         }
         rowY+=rowHeights[rowIndex];
       }
@@ -150,6 +154,53 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível gerar a colinha."); }
     finally { setBusy(false); }
   }
+  async function makeFrame(action: "download" | "whatsapp" | "instagram" | "facebook" | "share") {
+    if (!frameCandidate) { setError("Escolha uma localidade com candidatos publicados para criar a moldura."); return; }
+    setBusy(true);setError("");setNotice("");
+    try {
+      const canvas=document.createElement("canvas");canvas.width=1080;canvas.height=1080;
+      const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Seu navegador não permitiu gerar a moldura.");
+      const isCircle=frameShape==="circle";
+      const bg=frameCandidate.frame_background_color||"#075b3b";
+      const color=frameCandidate.frame_text_color||"#ffffff";
+      const font=["Arial","Georgia","Verdana","Impact"].includes(frameCandidate.frame_font_family||"")?frameCandidate.frame_font_family!:"Arial";
+      const fontSize=Math.max(28,Math.min(100,frameCandidate.frame_font_size||64));
+      if(isCircle){ctx.beginPath();ctx.arc(540,540,530,0,Math.PI*2);ctx.clip();}
+      ctx.fillStyle=bg;ctx.fillRect(0,0,1080,1080);
+      if(frameCandidate.frame_background_url){
+        const backdrop=await loadImage(frameCandidate.frame_background_url);
+        const s=Math.max(1080/backdrop.width,1080/backdrop.height);
+        ctx.drawImage(backdrop,(1080-backdrop.width*s)/2,(1080-backdrop.height*s)/2,backdrop.width*s,backdrop.height*s);
+      }
+      const picture=await loadImage(photo ?? "/bandeira-brasil.svg");
+      const box=isCircle?{x:95,y:95,w:890,h:890}:{x:20,y:20,w:1040,h:1040};
+      const scale=(photo?Math.max:Math.min)(box.w/picture.width,box.h/picture.height);
+      ctx.save();if(isCircle){ctx.beginPath();ctx.arc(540,540,445,0,Math.PI*2);ctx.clip();}
+      ctx.drawImage(picture,box.x+(box.w-picture.width*scale)/2,box.y+(box.h-picture.height*scale)/2,picture.width*scale,picture.height*scale);ctx.restore();
+      if(isCircle){ctx.beginPath();ctx.arc(540,540,445,0,Math.PI*2);ctx.lineWidth=13;ctx.strokeStyle="#ffffff";ctx.stroke();}
+      if(frameArt){
+        const artwork=await loadImage(frameArt);
+        ctx.drawImage(artwork,0,0,1080,1080);
+      }else{
+        const gradient=ctx.createLinearGradient(0,700,1080,1080);gradient.addColorStop(0,"#0873d1");gradient.addColorStop(1,bg);
+        ctx.beginPath();ctx.moveTo(0,isCircle?800:790);ctx.quadraticCurveTo(540,isCircle?660:550,1080,isCircle?800:790);ctx.lineTo(1080,1080);ctx.lineTo(0,1080);ctx.closePath();ctx.fillStyle=gradient;ctx.fill();
+        ctx.fillStyle=color;ctx.textAlign="center";
+        ctx.font=`bold ${Math.round(fontSize*.47)}px ${font}`;ctx.fillText(frameCandidate.cargo.toUpperCase(),540,825,880);
+        ctx.font=`900 ${fontSize}px ${font}`;ctx.fillText(displayName(frameCandidate).toUpperCase(),540,905,isCircle?790:960);
+        ctx.font=`900 ${Math.round(fontSize*1.75)}px ${font}`;ctx.fillText(frameCandidate.number||"MFB",540,1010,isCircle?600:950);
+      }
+      const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Não foi possível exportar a moldura.")),"image/png"));
+      const file=new File([blob],`moldura-mfb-${frameShape}.png`,{type:"image/png"});
+      if(action!=="download" && navigator.share && navigator.canShare?.({files:[file]})) {
+        try {await navigator.share({files:[file],title:`Moldura ${displayName(frameCandidate)}`});return;}
+        catch(cause) {if(cause instanceof DOMException && cause.name==="AbortError")return;}
+      }
+      const url=URL.createObjectURL(blob);const anchor=document.createElement("a");anchor.href=url;anchor.download=file.name;
+      document.body.appendChild(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+      if(action!=="download")setNotice(`A moldura foi baixada. Anexe a imagem no ${action==="whatsapp"?"WhatsApp":action==="instagram"?"Instagram":action==="facebook"?"Facebook":"aplicativo desejado"} ou use-a como foto de perfil.`);
+    }catch(cause){setError(cause instanceof Error?cause.message:"Não foi possível criar a moldura.");}
+    finally{setBusy(false);}
+  }
   return <>
     <header className="colinha-heading"><span className="badge">PERSONALIZE</span><h1>Minha colinha</h1><p>Escolha sua localidade e seus representantes. Se quiser, adicione sua foto; sem ela, a bandeira do Brasil aparecerá na colinha.</p></header>
     <div className="colinha-grid"><section className="card colinha-controls" aria-label="Configuração da colinha">
@@ -174,6 +225,17 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     <section className="colinha-preview colinha-poster" aria-label="Prévia da colinha"><div className="colinha-preview-top">
       {photo ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={photo} alt="Sua foto" onError={()=>setError("Sua foto não pôde ser exibida. Escolha JPG, PNG ou WebP.")} /> : /* eslint-disable-next-line @next/next/no-img-element */ <img className="colinha-flag" src="/bandeira-brasil.svg" alt="Bandeira do Brasil" />}
       <div className="colinha-poster-heading"><h2>COLINHA</h2><strong>{choiceLabel}</strong><p>{city ? `${city} · ` : ""}{state} · MFB</p></div>
-    </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}${isExecutiveRow(row) ? " colinha-executive-row" : ""}`}>{row.map(person=><div key={person.id} className="colinha-preview-row" style={{backgroundColor:cardColor(person,index)}}><div className="colinha-poster-text"><small>{person.cargo}</small><strong>{displayName(person)}</strong><b className={(person.number?.length ?? 0)>=5 ? "colinha-number-long" : (person.number?.length ?? 0)>=4 ? "colinha-number-medium" : ""}>{person.number||"—"}</b></div>{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" onLoad={event=>matchPhotoColor(person.id,event.currentTarget)} />}</div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><small>movimentofamiliabrasileira.com.br</small></footer></section></div>
+    </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}${isExecutiveRow(row) ? " colinha-executive-row" : ""}`}>{row.map(person=><div key={person.id} className="colinha-preview-row" style={{backgroundColor:cardColor(person,index)}}>{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" onLoad={event=>matchPhotoColor(person.id,event.currentTarget)} />}<div className="colinha-poster-text"><small>{person.cargo}</small><b className={(person.number?.length ?? 0)>=5 ? "colinha-number-long" : (person.number?.length ?? 0)>=4 ? "colinha-number-medium" : ""}>{person.number||"—"}</b><strong>{displayName(person)}</strong></div></div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><small>movimentofamiliabrasileira.com.br</small></footer></section></div>
+    <section className="colinha-frame-section card" aria-label="Moldura para WhatsApp"><div className="colinha-frame-controls">
+      <h2>Minha moldura para redes sociais</h2><p>Marque um candidato acima para liberar sua moldura. Use sua foto ou a bandeira do Brasil e escolha o formato para WhatsApp, Instagram ou Facebook.</p>
+      <label>Representante na moldura<select value={frameCandidate?.id ?? ""} onChange={event=>setFrameCandidateId(event.target.value)} disabled={!frameCandidates.length}><option value="" disabled>Selecione um candidato acima</option>{frameCandidates.map(person=><option key={person.id} value={person.id}>{displayName(person)} · {person.number || "MFB"}</option>)}</select></label>
+      <fieldset className="colinha-frame-shapes"><legend>Formato</legend><label><input type="radio" checked={frameShape==="circle"} onChange={()=>setFrameShape("circle")} /> Circular, com detalhes ao redor</label><label><input type="radio" checked={frameShape==="square"} onChange={()=>setFrameShape("square")} /> Quadrado, com faixa inferior</label></fieldset>
+      <div className="colinha-frame-actions"><button className="btn btn-primary" type="button" disabled={busy||!frameCandidate} onClick={()=>makeFrame("download")}>Baixar moldura PNG</button><button className="btn btn-secondary" type="button" disabled={busy||!frameCandidate} onClick={()=>makeFrame("whatsapp")}>WhatsApp</button><button className="btn btn-secondary" type="button" disabled={busy||!frameCandidate} onClick={()=>makeFrame("instagram")}>Instagram</button><button className="btn btn-secondary" type="button" disabled={busy||!frameCandidate} onClick={()=>makeFrame("facebook")}>Facebook</button><button className="btn btn-secondary" type="button" disabled={busy||!frameCandidate} onClick={()=>makeFrame("share")}>Outras mídias</button></div>
+      {notice.includes("moldura") && <p role="status">{notice}</p>}{error && <p role="alert" className="colinha-error">{error}</p>}
+    </div><div className={`colinha-frame-preview ${frameShape==="circle"?"colinha-frame-circle":"colinha-frame-square"}`} aria-label="Prévia da moldura" style={{backgroundColor:frameCandidate?.frame_background_color||"#075b3b"}}>
+      {frameCandidate?.frame_background_url && /* eslint-disable-next-line @next/next/no-img-element */ <img className="colinha-frame-background" src={frameCandidate.frame_background_url} alt="" />}
+      {/* eslint-disable-next-line @next/next/no-img-element */}<img className={photo?"":"colinha-frame-flag"} src={photo??"/bandeira-brasil.svg"} alt={photo?"Sua foto na moldura":"Bandeira do Brasil na moldura"} />
+      {frameArt ? /* eslint-disable-next-line @next/next/no-img-element */ <img className="colinha-frame-art" src={frameArt} alt="Arte da moldura do candidato" /> : <div className="colinha-frame-band" style={{color:frameCandidate?.frame_text_color||"#ffffff",fontFamily:frameCandidate?.frame_font_family||"Arial",background:`linear-gradient(120deg,#0873d1,${frameCandidate?.frame_background_color||"#075b3b"})`}}><small>{frameCandidate?.cargo ?? "MOVIMENTO FAMÍLIA BRASILEIRA"}</small><strong style={{fontSize:`clamp(18px,4vw,${Math.round((frameCandidate?.frame_font_size||64)*.44)}px)`}}>{frameCandidate?displayName(frameCandidate):"MFB"}</strong><b>{frameCandidate?.number??""}</b></div>}
+    </div></section>
   </>;
 }

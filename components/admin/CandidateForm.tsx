@@ -128,6 +128,13 @@ export default function CandidateForm({
     ),
 
     photo_url: initial?.photo_url ?? "",
+    frame_circle_url: initial?.frame_circle_url ?? "",
+    frame_square_url: initial?.frame_square_url ?? "",
+    frame_background_url: initial?.frame_background_url ?? "",
+    frame_background_color: initial?.frame_background_color ?? "#075b3b",
+    frame_text_color: initial?.frame_text_color ?? "#ffffff",
+    frame_font_family: initial?.frame_font_family ?? "Arial",
+    frame_font_size: Number(initial?.frame_font_size ?? 64),
 
     photo_position_x: Number(
       initial?.photo_position_x ?? 50
@@ -198,6 +205,8 @@ export default function CandidateForm({
 
   const [savedMessage, setSavedMessage] =
     useState("");
+  const [frameUploading, setFrameUploading] = useState(false);
+  const [frameUploadMessage, setFrameUploadMessage] = useState("");
 
   const [
     photoUploading,
@@ -394,6 +403,28 @@ export default function CandidateForm({
     }
   }
 
+  async function uploadFrame(e: ChangeEvent<HTMLInputElement>, key: "frame_circle_url" | "frame_square_url" | "frame_background_url") {
+    const file=e.target.files?.[0];if(!file)return;
+    setError("");setFrameUploadMessage("");
+    if(!["image/png","image/jpeg","image/webp"].includes(file.type) || file.size>5*1024*1024){setError("Use PNG, JPG ou WebP de até 5 MB. Para molduras, prefira PNG transparente.");e.target.value="";return;}
+    if(!initial?.id){setError("Crie primeiro o candidato para enviar a arte.");e.target.value="";return;}
+    setFrameUploading(true);
+    try{
+      const supabase=createClient();
+      const {data:{user},error:userError}=await supabase.auth.getUser();
+      if(userError||!user){setError("Sessão administrativa não encontrada.");return;}
+      const extension=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
+      const path=`${initial.id}/${key}-${Date.now()}.${extension}`;
+      const {error:uploadError}=await supabase.storage.from("candidate-frames").upload(path,file,{contentType:file.type,upsert:false});
+      if(uploadError){setError(`Falha no envio da moldura: ${uploadError.message}`);return;}
+      const {data}=supabase.storage.from("candidate-frames").getPublicUrl(path);
+      setForm(current=>({...current,[key]:data.publicUrl}));
+      setFrameUploadMessage("Arte enviada. Clique em “Salvar alterações” para associá-la ao candidato.");
+    }catch(cause){
+      setError(cause instanceof Error?cause.message:"Não foi possível enviar a arte.");
+    }finally{setFrameUploading(false);e.target.value="";}
+  }
+
   function centralizePhoto() {
     setForm((current) => ({
       ...current,
@@ -470,6 +501,7 @@ export default function CandidateForm({
         photo_zoom: Number(
           form.photo_zoom
         ),
+        frame_font_size: Math.max(28,Math.min(100,Number(form.frame_font_size)||64)),
 
         verified_at:
           form.verified_at || null,
@@ -1534,6 +1566,28 @@ export default function CandidateForm({
             </div>
           )}
 
+          <div className="admin-frame-settings">
+            <h3>Moldura da colinha e das redes sociais</h3>
+            <p>Envie artes PNG com centro transparente para sobrepor à foto do apoiador. É possível criar uma arte circular e outra quadrada. Sem arte, o sistema usa nome, número e cargo.</p>
+            <div className="admin-frame-assets">
+              {([
+                ["frame_circle_url","Arte circular (PNG transparente)"],
+                ["frame_square_url","Arte quadrada (faixa inferior)"],
+                ["frame_background_url","Imagem de fundo opcional"],
+              ] as const).map(([key,label])=><div key={key} className="admin-frame-asset">
+                <strong>{label}</strong>
+                <input type="file" accept="image/png,image/jpeg,image/webp" disabled={frameUploading||isNew} onChange={e=>uploadFrame(e,key)} />
+                {form[key] && <><img src={form[key]} alt={`Prévia de ${label}`} /><button type="button" className="btn btn-secondary" onClick={()=>set(key,"")}>Remover arte</button></>}
+              </div>)}
+            </div>
+            {frameUploadMessage && <p role="status">{frameUploadMessage}</p>}
+            <div className="admin-frame-fields">
+              <label>Fonte<select className="field" value={form.frame_font_family} onChange={e=>set("frame_font_family",e.target.value)}><option>Arial</option><option>Georgia</option><option>Verdana</option><option>Impact</option></select></label>
+              <label>Tamanho da letra (28 a 100)<input className="field" type="number" min="28" max="100" value={form.frame_font_size} onChange={e=>set("frame_font_size",Number(e.target.value))} /></label>
+              <label>Cor do texto<input type="color" value={form.frame_text_color} onChange={e=>set("frame_text_color",e.target.value)} /></label>
+              <label>Cor de fundo<input type="color" value={form.frame_background_color} onChange={e=>set("frame_background_color",e.target.value)} /></label>
+            </div>
+          </div>
           <div
             style={{
               marginTop: 30,

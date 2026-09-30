@@ -16,6 +16,12 @@ export default async function ColinhaPage({ searchParams }: { searchParams: Prom
     cargo: String(item.cargo ?? ""), number: item.number ?? null,
     state_uf: String(item.state_uf ?? "").trim().toUpperCase(),
     city_name: item.city_name ?? null, photo_url: item.photo_url ?? null,
+    frame_circle_url: item.frame_circle_url ?? null, frame_square_url: item.frame_square_url ?? null,
+    frame_background_url: item.frame_background_url ?? null,
+    frame_background_color: item.frame_background_color ?? "#075b3b",
+    frame_text_color: item.frame_text_color ?? "#ffffff",
+    frame_font_family: item.frame_font_family ?? "Arial",
+    frame_font_size: Number(item.frame_font_size ?? 64),
     slug: String(item.slug ?? ""),
   }));
   return <><Header /><main className="container colinha-page"><ColinhaBuilder candidates={candidates} initialState={requested} loadError={Boolean(error)} /></main></>;
