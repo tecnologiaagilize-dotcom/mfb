@@ -69,7 +69,7 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     else posterRows.push([first]);
   }
   const isExecutiveRow = (row: PublicCandidate[]) => row.length === 2 && officeRank(row[0].cargo) === 0 && officeRank(row[1].cargo) === 1;
-  const rowHeights = posterRows.map(row => isExecutiveRow(row) ? 430 : 470);
+  const rowHeights = posterRows.map(row => row.length === 1 ? 330 : 305);
   function choose(id: string) { setSelected(old => old.includes(id) ? old.filter(value => value !== id) : [...old,id]); }
   function upload(file?: File) {
     if (!file) return;
@@ -112,19 +112,23 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
           const x=16+column*(boxW+gap),y=rowY,w=boxW,h=rowHeights[rowIndex]-8;
           ctx.fillStyle=cardColor(person,rowIndex);ctx.beginPath();ctx.roundRect(x,y,w,h,16);ctx.fill();
           ctx.strokeStyle="#fff";ctx.lineWidth=4;ctx.stroke();
-          const headingHeight=155;
-          ctx.save();ctx.textAlign="center";
-          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?32:26}px Arial`;
-          ctx.fillText(person.cargo.toUpperCase(),x+w/2,y+36,w-28);
-          ctx.font=`bold ${row.length===1?39:33}px Arial`;
-          ctx.fillText(displayName(person).toUpperCase(),x+w/2,y+79,w-28);
-          ctx.fillStyle="#ffe22c";
-          ctx.font=`900 ${row.length===1?82:76}px Arial`;
-          ctx.fillText(person.number||"—",x+w/2,y+headingHeight-14,w-28);
-          ctx.restore();
+          const photoWidth=row.length===1?Math.min(370,w*.36):Math.min(220,w*.42);
+          const textX=x+photoWidth+18,textWidth=w-photoWidth-38;
+          const band=ctx.createLinearGradient(x,y,x+w,y+h);
+          band.addColorStop(0,"#ffffff18");band.addColorStop(.6,"#ffffff00");band.addColorStop(1,"#00000033");
+          ctx.fillStyle=band;ctx.beginPath();ctx.roundRect(x+4,y+4,w-8,h-8,12);ctx.fill();
+          ctx.fillStyle="#ffe22c";ctx.beginPath();ctx.moveTo(textX+textWidth-42,y+24);ctx.lineTo(textX+textWidth,y+15);ctx.lineTo(textX+textWidth-13,y+32);ctx.lineTo(textX+textWidth-50,y+37);ctx.fill();
+          ctx.fillStyle="#fff";ctx.font=`bold ${row.length===1?32:25}px Arial`;
+          ctx.fillText(person.cargo.toUpperCase(),textX,y+55,textWidth);
+          const number=person.number||"—";let numberSize=row.length===1?150:110;
+          ctx.font=`900 ${numberSize}px Arial`;
+          while(numberSize>44 && ctx.measureText(number).width>textWidth){numberSize-=2;ctx.font=`900 ${numberSize}px Arial`;}
+          ctx.fillStyle="#ffe22c";ctx.fillText(number,textX,y+Math.round(h*.69));
+          ctx.fillStyle="#fff";ctx.font=`900 ${row.length===1?41:29}px Arial`;
+          ctx.fillText(displayName(person).toUpperCase(),textX,y+h-26,textWidth);
           if(person.photo_url){
             try {const portrait=await loadImage(person.photo_url);
-              const areaX=x+8,areaY=y+headingHeight+3,areaW=w-16,areaH=h-headingHeight-11;
+              const areaX=x+8,areaY=y+8,areaW=photoWidth-12,areaH=h-16;
               const ratio=Math.min(areaW/portrait.width,areaH/portrait.height);
               ctx.drawImage(portrait,areaX+(areaW-portrait.width*ratio)/2,areaY+(areaH-portrait.height*ratio)/2,portrait.width*ratio,portrait.height*ratio);
             }catch{/* Keep a readable card when a photo host disallows browser drawing. */}
@@ -231,7 +235,7 @@ export function ColinhaBuilder({ candidates, initialState, loadError = false }: 
     <section className="colinha-preview colinha-poster" aria-label="Prévia da colinha"><div className="colinha-preview-top">
       {photo ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={photo} alt="Sua foto" onError={()=>setError("Sua foto não pôde ser exibida. Escolha JPG, PNG ou WebP.")} /> : /* eslint-disable-next-line @next/next/no-img-element */ <img className="colinha-flag" src="/bandeira-brasil.svg" alt="Bandeira do Brasil" />}
       <div className="colinha-poster-heading"><h2>COLINHA</h2><strong>{choiceLabel}</strong><p>{city ? `${city} · ` : ""}{state} · MFB</p></div>
-    </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}${isExecutiveRow(row) ? " colinha-executive-row" : ""}`}>{row.map(person=><div key={person.id} className="colinha-preview-row" style={{backgroundColor:cardColor(person,index)}}><div className="colinha-poster-text"><small>{person.cargo}</small><strong>{displayName(person)}</strong><b className={(person.number?.length ?? 0)>=5 ? "colinha-number-long" : (person.number?.length ?? 0)>=4 ? "colinha-number-medium" : ""}>{person.number||"—"}</b></div>{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" onLoad={event=>matchPhotoColor(person.id,event.currentTarget)} />}</div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><small>movimentofamiliabrasileira.com.br</small></footer></section></div>
+    </div><div className="colinha-preview-list">{chosen.length?posterRows.map((row,index)=><div key={index} className={`colinha-poster-row colinha-poster-row-${index % 5}${isExecutiveRow(row) ? " colinha-executive-row" : ""}`}>{row.map(person=><div key={person.id} className="colinha-preview-row" style={{backgroundColor:cardColor(person,index)}}>{person.photo_url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={person.photo_url} alt="" loading="lazy" onLoad={event=>matchPhotoColor(person.id,event.currentTarget)} />}<div className="colinha-poster-text"><small>{person.cargo}</small><b className={(person.number?.length ?? 0)>=5 ? "colinha-number-long" : (person.number?.length ?? 0)>=4 ? "colinha-number-medium" : ""}>{person.number||"—"}</b><strong>{displayName(person)}</strong></div></div>)}</div>):<p>Escolha candidatos para ver o cartaz.</p>}</div><footer><small>movimentofamiliabrasileira.com.br</small></footer></section></div>
     <section className="colinha-frame-section card" aria-label="Moldura para WhatsApp"><div className="colinha-frame-controls">
       <h2>Minha moldura para redes sociais</h2><p>Marque um candidato acima para liberar sua moldura. Use sua foto ou a bandeira do Brasil e escolha o formato para WhatsApp, Instagram ou Facebook.</p>
       <label className="colinha-frame-upload">Inserir foto ou imagem<input type="file" accept="image/*" onChange={event=>upload(event.target.files?.[0])} /></label>
